@@ -18,6 +18,12 @@ Get the application URL by running:
 {{- if .Values.postgresql.enabled }}
 
 PostgreSQL is running as part of this release (with PGMQ and pg_cron extensions).
+{{- if .Values.route.enabled }}
+
+OPENSHIFT: The PostgreSQL init container requires the 'anyuid' SCC.
+If pods are not starting, run:
+  oc adm policy add-scc-to-user anyuid -z {{ include "rootcx-core.serviceAccountName" . }} -n {{ .Release.Namespace }}
+{{- end }}
 {{- else }}
 Using external database: {{ .Values.databaseUrl }}
 {{- end }}

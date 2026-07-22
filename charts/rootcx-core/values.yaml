@@ -25,14 +25,14 @@ serviceAccount:
 podAnnotations: {}
 
 # -- Pod security context
+# Do NOT hardcode runAsUser — OpenShift assigns UIDs from namespace range.
+# On vanilla Kubernetes the image's USER directive (UID 1000) takes effect.
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1000
-  runAsGroup: 1000
-  fsGroup: 1000
 
 # -- Container security context
 securityContext:
+  runAsUser: 1000
   allowPrivilegeEscalation: false
   capabilities:
     drop:

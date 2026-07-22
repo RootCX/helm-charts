@@ -23,6 +23,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      serviceAccountName: {{ include "rootcx-core.serviceAccountName" . }}
       automountServiceAccountToken: false
       initContainers:
         - name: init-pgdata
