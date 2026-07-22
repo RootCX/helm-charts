@@ -1,0 +1,205 @@
+# RootCX Core Helm Chart — values.yaml
+# All configuration is done via environment variables.
+# This file documents every configurable parameter.
+
+# -- Number of Core replicas (1 for single-instance deployments)
+replicaCount: 1
+
+# -- Core container image
+image:
+  repository: ghcr.io/rootcx/core
+  tag: ""  # Defaults to appVersion from Chart.yaml
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# -- Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+# -- Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# =============================================================================
+# CORE CONFIGURATION (environment variables)
+# =============================================================================
+
+# -- PostgreSQL connection string (REQUIRED)
+# Format: postgres://user:password@host:port/dbname
+databaseUrl: ""
+
+# -- JWT signing secret (auto-generated if empty)
+jwtSecret: ""
+
+# -- Master encryption key for secrets vault (hex-encoded, auto-generated if empty)
+masterKey: ""
+
+# -- Public URL of this RootCX instance (used for OIDC callbacks, magic links)
+# Example: https://rootcx.example.com
+publicUrl: ""
+
+# -- Disable password-based login (set "true" to force SSO-only)
+disablePasswordLogin: "false"
+
+# -- Log level (trace, debug, info, warn, error)
+logLevel: "info"
+
+# =============================================================================
+# SSO / OIDC CONFIGURATION
+# =============================================================================
+
+oidc:
+  # -- OIDC issuer URL (e.g. https://keycloak.example.com/realms/myrealm)
+  issuer: ""
+  # -- OIDC client ID
+  clientId: ""
+  # -- OIDC client secret
+  clientSecret: ""
+
+# =============================================================================
+# SERVICE
+# =============================================================================
+
+service:
+  type: ClusterIP
+  port: 9100
+
+# =============================================================================
+# INGRESS
+# =============================================================================
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: rootcx.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# =============================================================================
+# OpenShift Route (alternative to ingress)
+# =============================================================================
+
+route:
+  enabled: false
+  host: ""
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+
+# =============================================================================
+# PERSISTENCE (Core data volume at /data)
+# =============================================================================
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  existingClaim: ""
+
+# =============================================================================
+# RESOURCES
+# =============================================================================
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+# =============================================================================
+# PROBES
+# =============================================================================
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+# =============================================================================
+# POSTGRESQL (embedded in chart)
+# =============================================================================
+
+postgresql:
+  # -- Deploy PostgreSQL as part of this chart (with PGMQ + pg_cron)
+  enabled: true
+
+  image:
+    repository: ghcr.io/rootcx/postgresql
+    tag: "16-pgmq-cron"
+    pullPolicy: IfNotPresent
+
+  auth:
+    username: rootcx
+    password: ""  # REQUIRED if postgresql.enabled=true
+    database: rootcx
+
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 10Gi
+    existingClaim: ""
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+# =============================================================================
+# EXTRA ENVIRONMENT VARIABLES
+# =============================================================================
+
+# -- Additional environment variables for the Core container
+extraEnvVars: []
+#  - name: SOME_VAR
+#    value: "some-value"
+
+# -- Reference existing secrets as env vars
+extraEnvVarsSecret: ""
+
+# =============================================================================
+# NODE SCHEDULING
+# =============================================================================
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

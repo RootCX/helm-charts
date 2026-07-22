@@ -1,0 +1,127 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "rootcx-core.postgresql.fullname" . }}
+  labels:
+    {{- include "rootcx-core.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  serviceName: {{ include "rootcx-core.postgresql.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "rootcx-core.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+  template:
+    metadata:
+      labels:
+        {{- include "rootcx-core.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: postgresql
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      initContainers:
+        - name: init-pgdata
+          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+          command: ["/bin/bash", "/scripts/pg-init.sh"]
+          securityContext:
+            runAsUser: 0
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rootcx-core.fullname" . }}
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.auth.database | quote }}
+            - name: PGDATA
+              value: /data/pgdata
+          volumeMounts:
+            - name: pgdata
+              mountPath: /data
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      containers:
+        - name: postgresql
+          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+          command: ["/bin/bash", "/scripts/pg-run.sh"]
+          securityContext:
+            runAsUser: 26
+            runAsGroup: 102
+            allowPrivilegeEscalation: false
+          env:
+            - name: PGDATA
+              value: /data/pgdata
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.postgresql.auth.username | quote }}
+                - -d
+                - {{ .Values.postgresql.auth.database | quote }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.postgresql.auth.username | quote }}
+                - -d
+                - {{ .Values.postgresql.auth.database | quote }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          {{- with .Values.postgresql.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: pgdata
+              mountPath: /data
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+  {{- if .Values.postgresql.persistence.enabled }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "rootcx-core.postgresql.fullname" . }}-scripts
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes:
+          - {{ .Values.postgresql.persistence.accessMode }}
+        {{- if .Values.postgresql.persistence.storageClass }}
+        storageClassName: {{ .Values.postgresql.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.persistence.size }}
+  {{- else }}
+      volumes:
+        - name: pgdata
+          emptyDir: {}
+        - name: scripts
+          configMap:
+            name: {{ include "rootcx-core.postgresql.fullname" . }}-scripts
+            defaultMode: 0755
+  {{- end }}
+{{- end }}

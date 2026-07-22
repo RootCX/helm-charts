@@ -1,0 +1,25 @@
+apiVersion: v2
+name: rootcx-core
+description: RootCX Core — AI application runtime with governance, permissions, audit, and SSO
+type: application
+version: 0.1.0
+appVersion: "0.20.1"
+
+keywords:
+  - ai
+  - agents
+  - governance
+  - internal-tools
+  - platform
+
+maintainers:
+  - name: Sandro Munda
+    email: sandro@rootcx.com
+    url: https://rootcx.com
+
+sources:
+  - https://github.com/rootcx/rootcx
+
+home: https://rootcx.com
+
+icon: https://rootcx.com/icon.png

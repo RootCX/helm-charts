@@ -1,0 +1,57 @@
+# RootCX Core — Example production values
+# Copy this file, fill in secrets, and adapt to your environment.
+
+replicaCount: 1
+
+publicUrl: https://rootcx.example.com
+
+# Expose via Kubernetes Ingress OR OpenShift Route (pick one)
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: rootcx.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - rootcx.example.com
+      secretName: rootcx-tls
+
+# route:
+#   enabled: true
+#   host: rootcx.example.com
+
+# SSO via OIDC (Keycloak, Azure AD, Okta, etc.)
+oidc:
+  issuer: https://idp.example.com/realms/myrealm
+  clientId: rootcx
+  clientSecret: CHANGE_ME
+
+disablePasswordLogin: "true"
+
+# Embedded PostgreSQL (with PGMQ + pg_cron)
+postgresql:
+  enabled: true
+  auth:
+    username: rootcx
+    password: CHANGE_ME
+    database: rootcx
+  persistence:
+    enabled: true
+    size: 20Gi
+
+# Core data volume
+persistence:
+  enabled: true
+  size: 10Gi
+
+# Resources
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "500m"
+  limits:
+    memory: "2Gi"
+    cpu: "2000m"
