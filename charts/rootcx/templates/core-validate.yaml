@@ -1,0 +1,18 @@
+{{- $managedHost := dig "hosts" "core" "" .Values.global.rootcx -}}
+{{- $tlsSecret := include "rootcx-core.tlsSecretName" . -}}
+{{- $routeHost := default .Values.core.route.host $managedHost -}}
+{{- if eq (include "rootcx-core.deploymentMode" .) "production" -}}
+{{- if not .Values.core.existingSecret -}}
+{{- $_ := required "core.jwtSecret is required in production unless core.existingSecret is set" .Values.core.jwtSecret -}}
+{{- $_ := required "core.masterKey is required in production unless core.existingSecret is set" .Values.core.masterKey -}}
+{{- if and .Values.core.postgresql.enabled (not .Values.core.postgresql.auth.password) -}}
+{{- fail "core.postgresql.auth.password is required in production when PostgreSQL is embedded" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- if and $tlsSecret (not $routeHost) -}}
+{{- fail "global.rootcx.hosts.core or route.host is required when an external TLS Secret is set" -}}
+{{- end -}}
+{{- if and (include "rootcx-core.tlsSecretName" .) (eq .Values.core.route.tls.termination "passthrough") -}}
+{{- fail "an external TLS certificate cannot be used with passthrough Route termination" -}}
+{{- end -}}

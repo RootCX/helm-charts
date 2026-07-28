@@ -16,12 +16,8 @@ jobs:
       - uses: azure/setup-helm@v4
         with:
           version: v3.19.0
-      - name: Build pinned dependencies
-        run: helm dependency build charts/rootcx
       - name: Lint zero-configuration quickstart
-        run: |
-          helm lint charts/rootcx-core
-          helm lint charts/rootcx
+        run: helm lint charts/rootcx
       - name: Render Kubernetes quickstart
         run: helm template rootcx charts/rootcx > /tmp/rootcx-quickstart.yaml
       - name: Validate generated quickstart configuration
@@ -57,16 +53,30 @@ jobs:
             --set-string global.rootcx.hosts.core=core.rootcx.invalid \
             --set-string global.rootcx.oidcClientSecret=validation-only \
             --set-string bootstrap.adminEmail=admin@rootcx.invalid \
-            --set email.enabled=true \
-            --set-string email.from=rootcx@rootcx.invalid \
-            --set-string email.smtp.host=smtp.rootcx.invalid \
             --set-string auth.secret=0123456789abcdef0123456789abcdef \
             --set-file oidc.signingKey=/tmp/oidc-private-key.pem \
             --set-string core.jwtSecret=0123456789abcdef0123456789abcdef \
             --set-string core.masterKey=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
             --set-string core.postgresql.auth.password=validation-only \
             > /tmp/rootcx-production.yaml
-          grep -q 'name: SMTP_HOST' /tmp/rootcx-production.yaml
+          if grep -q 'name: SMTP_HOST' /tmp/rootcx-production.yaml; then
+            echo "Production must not require SMTP"
+            exit 1
+          fi
+      - name: Validate explicitly enabled SMTP
+        run: |
+          helm template rootcx charts/rootcx \
+            --set email.enabled=true \
+            --set-string email.from=rootcx@rootcx.invalid \
+            --set-string email.smtp.host=smtp.rootcx.invalid \
+            > /tmp/rootcx-smtp.yaml
+          grep -q 'name: SMTP_HOST' /tmp/rootcx-smtp.yaml
+          if helm template rootcx charts/rootcx \
+            --set email.enabled=true \
+            >/dev/null 2>&1; then
+            echo "Enabled SMTP must require a sender and relay"
+            exit 1
+          fi
       - name: Reject incomplete production configuration
         run: |
           if helm template rootcx charts/rootcx \
@@ -85,8 +95,6 @@ jobs:
         with:
           version: v3.19.0
       - uses: helm/kind-action@v1
-      - name: Build pinned dependencies
-        run: helm dependency build charts/rootcx
       - name: Install the zero-configuration quickstart
         run: |
           helm install rootcx charts/rootcx \

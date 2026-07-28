@@ -1,0 +1,21 @@
+{{- if and .Values.core.persistence.enabled (not .Values.core.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "rootcx-core.fullname" . }}
+  {{- if .Values.core.persistence.keep }}
+  annotations:
+    helm.sh/resource-policy: keep
+  {{- end }}
+  labels:
+    {{- include "rootcx-core.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.core.persistence.accessMode }}
+  {{- if .Values.core.persistence.storageClass }}
+  storageClassName: {{ .Values.core.persistence.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.core.persistence.size }}
+{{- end }}

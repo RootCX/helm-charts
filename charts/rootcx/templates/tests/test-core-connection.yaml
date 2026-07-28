@@ -20,7 +20,7 @@ spec:
         - --fail
         - --silent
         - --show-error
-        - http://{{ include "rootcx-core.fullname" . }}:{{ .Values.service.port }}/health
+        - http://{{ include "rootcx-core.fullname" . }}:{{ .Values.core.service.port }}/health
       securityContext:
         allowPrivilegeEscalation: false
         {{- if ne (include "rootcx-core.platform" .) "openshift" }}

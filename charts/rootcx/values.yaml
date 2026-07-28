@@ -43,7 +43,7 @@ bootstrap:
   adminEmail: "admin@rootcx.localhost"
 
 email:
-  # Disabled for quickstart. Production validation requires a real SMTP relay.
+  # Optional in every mode. When disabled, Portal starts without email features.
   enabled: false
   # Dedicated installations use the organization's SMTP relay. Credentials are
   # optional for trusted in-cluster relays; when username is set, password is
@@ -190,27 +190,107 @@ nodeSelector: {}
 tolerations: []
 affinity: {}
 
-# Values for the bundled public rootcx-core dependency.
+# Core and PostgreSQL are part of this chart. Resource names remain compatible
+# with releases created before the charts were merged.
 core:
+  replicaCount: 1
+  strategy:
+    type: Recreate
   image:
     repository: ghcr.io/rootcx/core
     tag: "0.21.1"
     pullPolicy: IfNotPresent
+  imagePullSecrets: []
+  nameOverride: ""
+  fullnameOverride: ""
+  existingSecret: ""
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+  podAnnotations: {}
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+    fsGroup: 1000
+    fsGroupChangePolicy: OnRootMismatch
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+  databaseUrl: ""
   publicUrl: ""
-  # Required unless core.existingSecret is set. Keep both values unchanged
-  # across upgrades; masterKey protects the encrypted application secret vault.
   jwtSecret: ""
   masterKey: ""
+  disablePasswordLogin: "false"
+  logLevel: info
   ai:
     openai:
-      # Exact OpenAI Chat Completions-compatible gateway base URL, commonly
-      # ending in /v1. Leave empty to use the public OpenAI default.
       baseUrl: ""
+  oidc:
+    issuer: ""
+    clientId: ""
+    clientSecret: ""
+  service:
+    type: ClusterIP
+    port: 9100
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: core.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  route:
+    enabled: false
+    host: ""
+    tls:
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
+      externalCertificateSecretName: ""
   persistence:
     enabled: true
+    keep: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
     size: 5Gi
+    existingClaim: ""
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+  startupProbe:
+    httpGet:
+      path: /health
+      port: http
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 24
   postgresql:
     enabled: true
+    terminationGracePeriodSeconds: 60
     image:
       repository: ghcr.io/rootcx/postgresql
       tag: "16-pgmq1.5.0-rootcx1"
@@ -223,13 +303,41 @@ core:
       - portal
     persistence:
       enabled: true
+      storageClass: ""
+      accessMode: ReadWriteOnce
       size: 10Gi
-  ingress:
-    enabled: false
-  route:
-    enabled: false
-    tls:
-      # The umbrella chart creates the shared router permission once.
-      createRouterRBAC: false
+      existingClaim: ""
+      retentionPolicy:
+        whenDeleted: Retain
+        whenScaled: Retain
+    podSecurityContext:
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+      fsGroup: 26
+      fsGroupChangePolicy: OnRootMismatch
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+  trustedCA: ""
   networkPolicy:
     enabled: true
+    dnsPort: 53
+    dnsNamespaceSelector:
+      kubernetes.io/metadata.name: kube-system
+    ingressNamespaceSelector: {}
+    extraEgress: []
+  extraEnvVars: []
+  extraEnvVarsSecret: ""
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

@@ -5,21 +5,21 @@ metadata:
   labels:
     {{- include "rootcx-core.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.core.replicaCount }}
   strategy:
-    {{- toYaml .Values.strategy | nindent 4 }}
+    {{- toYaml .Values.core.strategy | nindent 4 }}
   selector:
     matchLabels:
       {{- include "rootcx-core.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: core
   template:
     metadata:
-      {{- if or (not .Values.existingSecret) .Values.podAnnotations }}
+      {{- if or (not .Values.core.existingSecret) .Values.core.podAnnotations }}
       annotations:
-        {{- if not .Values.existingSecret }}
-        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- if not .Values.core.existingSecret }}
+        checksum/secret: {{ include (print $.Template.BasePath "/core-secret.yaml") . | sha256sum }}
         {{- end }}
-        {{- with .Values.podAnnotations }}
+        {{- with .Values.core.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- end }}
@@ -27,14 +27,14 @@ spec:
         {{- include "rootcx-core.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: core
     spec:
-      {{- with .Values.imagePullSecrets }}
+      {{- with .Values.core.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "rootcx-core.serviceAccountName" . }}
       automountServiceAccountToken: false
       enableServiceLinks: false
-      {{- with .Values.podSecurityContext }}
+      {{- with .Values.core.podSecurityContext }}
       securityContext:
         {{- if eq (include "rootcx-core.platform" $) "openshift" }}
         {{- omit . "fsGroup" "fsGroupChangePolicy" | toYaml | nindent 8 }}
@@ -44,12 +44,12 @@ spec:
       {{- end }}
       containers:
         - name: core
-          {{- with .Values.securityContext }}
+          {{- with .Values.core.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "{{ .Values.core.image.repository }}:{{ .Values.core.image.tag }}"
+          imagePullPolicy: {{ .Values.core.image.pullPolicy }}
           ports:
             - name: http
               containerPort: 9100
@@ -62,12 +62,12 @@ spec:
               value: {{ include "rootcx-core.publicUrl" . | quote }}
             {{- end }}
             - name: ROOTCX_DISABLE_PASSWORD_LOGIN
-              value: {{ .Values.disablePasswordLogin | quote }}
+              value: {{ .Values.core.disablePasswordLogin | quote }}
             - name: RUST_LOG
-              value: {{ .Values.logLevel | quote }}
-            {{- if .Values.ai.openai.baseUrl }}
+              value: {{ .Values.core.logLevel | quote }}
+            {{- if .Values.core.ai.openai.baseUrl }}
             - name: ROOTCX_OPENAI_BASE_URL
-              value: {{ .Values.ai.openai.baseUrl | quote }}
+              value: {{ .Values.core.ai.openai.baseUrl | quote }}
             {{- end }}
             {{- if (include "rootcx-core.oidcIssuer" .) }}
             - name: ROOTCX_OIDC_ISSUER
@@ -75,33 +75,33 @@ spec:
             - name: ROOTCX_OIDC_CLIENT_ID
               value: {{ include "rootcx-core.oidcClientId" . | quote }}
             {{- end }}
-            {{- if .Values.trustedCA }}
+            {{- if .Values.core.trustedCA }}
             - name: SSL_CERT_FILE
               value: /etc/pki/tls/certs/ca-bundle.crt
             {{- end }}
-            {{- with .Values.extraEnvVars }}
+            {{- with .Values.core.extraEnvVars }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           envFrom:
             - secretRef:
                 name: {{ include "rootcx-core.secretName" . }}
-            {{- if .Values.extraEnvVarsSecret }}
+            {{- if .Values.core.extraEnvVarsSecret }}
             - secretRef:
-                name: {{ .Values.extraEnvVarsSecret }}
+                name: {{ .Values.core.extraEnvVarsSecret }}
             {{- end }}
-          {{- with .Values.livenessProbe }}
+          {{- with .Values.core.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.readinessProbe }}
+          {{- with .Values.core.readinessProbe }}
           readinessProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.startupProbe }}
+          {{- with .Values.core.startupProbe }}
           startupProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.resources }}
+          {{- with .Values.core.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -110,7 +110,7 @@ spec:
               mountPath: /data
             - name: tmp
               mountPath: /tmp
-            {{- if .Values.trustedCA }}
+            {{- if .Values.core.trustedCA }}
             - name: trusted-ca
               mountPath: /etc/pki/tls/certs
               readOnly: true
@@ -119,29 +119,29 @@ spec:
         - name: tmp
           emptyDir: {}
         - name: data
-          {{- if .Values.persistence.enabled }}
+          {{- if .Values.core.persistence.enabled }}
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaim | default (include "rootcx-core.fullname" .) }}
+            claimName: {{ .Values.core.persistence.existingClaim | default (include "rootcx-core.fullname" .) }}
           {{- else }}
           emptyDir: {}
           {{- end }}
-        {{- if .Values.trustedCA }}
+        {{- if .Values.core.trustedCA }}
         - name: trusted-ca
           configMap:
-            name: {{ .Values.trustedCA }}
+            name: {{ .Values.core.trustedCA }}
             items:
               - key: ca-bundle.crt
                 path: ca-bundle.crt
         {{- end }}
-      {{- with .Values.nodeSelector }}
+      {{- with .Values.core.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
+      {{- with .Values.core.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
+      {{- with .Values.core.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

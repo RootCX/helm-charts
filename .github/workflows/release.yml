@@ -26,13 +26,10 @@ jobs:
         with:
           version: v3.19.0
       - uses: docker/setup-buildx-action@v3
-      - name: Build and validate charts
+      - name: Validate and package chart
         run: |
-          helm dependency build charts/rootcx
-          helm lint charts/rootcx-core
           helm lint charts/rootcx
           mkdir -p dist
-          helm package charts/rootcx-core --destination dist
           helm package charts/rootcx --destination dist
       - name: Verify referenced public images exist
         run: |

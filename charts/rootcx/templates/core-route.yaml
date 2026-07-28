@@ -1,6 +1,6 @@
 {{- $managedHost := dig "hosts" "core" "" .Values.global.rootcx -}}
 {{- $managed := and (eq (include "rootcx-core.platform" .) "openshift") $managedHost -}}
-{{- if or .Values.route.enabled $managed -}}
+{{- if or .Values.core.route.enabled $managed -}}
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
@@ -17,7 +17,7 @@ spec:
     weight: 100
   port:
     targetPort: http
-  {{- with .Values.route.tls }}
+  {{- with .Values.core.route.tls }}
   tls:
     termination: {{ .termination }}
     insecureEdgeTerminationPolicy: {{ .insecureEdgeTerminationPolicy }}

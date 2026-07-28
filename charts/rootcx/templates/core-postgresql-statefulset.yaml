@@ -1,4 +1,4 @@
-{{- if .Values.postgresql.enabled }}
+{{- if .Values.core.postgresql.enabled }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -10,7 +10,7 @@ spec:
   serviceName: {{ include "rootcx-core.postgresql.fullname" . }}
   replicas: 1
   persistentVolumeClaimRetentionPolicy:
-    {{- toYaml .Values.postgresql.persistence.retentionPolicy | nindent 4 }}
+    {{- toYaml .Values.core.postgresql.persistence.retentionPolicy | nindent 4 }}
   selector:
     matchLabels:
       {{- include "rootcx-core.selectorLabels" . | nindent 6 }}
@@ -21,15 +21,15 @@ spec:
         {{- include "rootcx-core.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: postgresql
     spec:
-      {{- with .Values.imagePullSecrets }}
+      {{- with .Values.core.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "rootcx-core.serviceAccountName" . }}
       automountServiceAccountToken: false
       enableServiceLinks: false
-      terminationGracePeriodSeconds: {{ .Values.postgresql.terminationGracePeriodSeconds }}
-      {{- with .Values.postgresql.podSecurityContext }}
+      terminationGracePeriodSeconds: {{ .Values.core.postgresql.terminationGracePeriodSeconds }}
+      {{- with .Values.core.postgresql.podSecurityContext }}
       securityContext:
         {{- if eq (include "rootcx-core.platform" $) "openshift" }}
         {{- omit . "fsGroup" "fsGroupChangePolicy" | toYaml | nindent 8 }}
@@ -39,10 +39,10 @@ spec:
       {{- end }}
       containers:
         - name: postgresql
-          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
-          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+          image: "{{ .Values.core.postgresql.image.repository }}:{{ .Values.core.postgresql.image.tag }}"
+          imagePullPolicy: {{ .Values.core.postgresql.image.pullPolicy }}
           command: ["/pg-entrypoint.sh"]
-          {{- with .Values.postgresql.securityContext }}
+          {{- with .Values.core.postgresql.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -50,21 +50,21 @@ spec:
             - name: PGDATA
               value: /data/pgdata
             - name: POSTGRES_USER
-              value: {{ .Values.postgresql.auth.username | quote }}
+              value: {{ .Values.core.postgresql.auth.username | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "rootcx-core.secretName" . }}
                   key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
-              value: {{ .Values.postgresql.auth.database | quote }}
-            {{- range .Values.postgresql.extraDatabases }}
+              value: {{ .Values.core.postgresql.auth.database | quote }}
+            {{- range .Values.core.postgresql.extraDatabases }}
             {{- if not (regexMatch "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$" .) }}
-            {{- fail (printf "invalid postgresql.extraDatabases entry: %s" .) }}
+            {{- fail (printf "invalid core.postgresql.extraDatabases entry: %s" .) }}
             {{- end }}
             {{- end }}
             - name: POSTGRES_EXTRA_DATABASES
-              value: {{ join "," .Values.postgresql.extraDatabases | quote }}
+              value: {{ join "," .Values.core.postgresql.extraDatabases | quote }}
           ports:
             - name: postgresql
               containerPort: 5432
@@ -76,9 +76,9 @@ spec:
                 - -h
                 - 127.0.0.1
                 - -U
-                - {{ .Values.postgresql.auth.username | quote }}
+                - {{ .Values.core.postgresql.auth.username | quote }}
                 - -d
-                - {{ .Values.postgresql.auth.database | quote }}
+                - {{ .Values.core.postgresql.auth.database | quote }}
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -89,13 +89,13 @@ spec:
                 - -h
                 - 127.0.0.1
                 - -U
-                - {{ .Values.postgresql.auth.username | quote }}
+                - {{ .Values.core.postgresql.auth.username | quote }}
                 - -d
-                - {{ .Values.postgresql.auth.database | quote }}
+                - {{ .Values.core.postgresql.auth.database | quote }}
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3
-          {{- with .Values.postgresql.resources }}
+          {{- with .Values.core.postgresql.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -104,7 +104,7 @@ spec:
               mountPath: /data
             - name: tmp
               mountPath: /tmp
-  {{- if and .Values.postgresql.persistence.enabled (not .Values.postgresql.persistence.existingClaim) }}
+  {{- if and .Values.core.postgresql.persistence.enabled (not .Values.core.postgresql.persistence.existingClaim) }}
       volumes:
         - name: tmp
           emptyDir: {}
@@ -113,20 +113,20 @@ spec:
         name: pgdata
       spec:
         accessModes:
-          - {{ .Values.postgresql.persistence.accessMode }}
-        {{- if .Values.postgresql.persistence.storageClass }}
-        storageClassName: {{ .Values.postgresql.persistence.storageClass | quote }}
+          - {{ .Values.core.postgresql.persistence.accessMode }}
+        {{- if .Values.core.postgresql.persistence.storageClass }}
+        storageClassName: {{ .Values.core.postgresql.persistence.storageClass | quote }}
         {{- end }}
         resources:
           requests:
-            storage: {{ .Values.postgresql.persistence.size }}
-  {{- else if .Values.postgresql.persistence.existingClaim }}
+            storage: {{ .Values.core.postgresql.persistence.size }}
+  {{- else if .Values.core.postgresql.persistence.existingClaim }}
       volumes:
         - name: tmp
           emptyDir: {}
         - name: pgdata
           persistentVolumeClaim:
-            claimName: {{ .Values.postgresql.persistence.existingClaim }}
+            claimName: {{ .Values.core.postgresql.persistence.existingClaim }}
   {{- else }}
       volumes:
         - name: tmp

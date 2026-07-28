@@ -1,53 +1,119 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["global", "instance", "bootstrap", "email", "image", "service", "core"],
+  "required": [
+    "global",
+    "instance",
+    "bootstrap",
+    "email",
+    "image",
+    "service",
+    "core"
+  ],
   "properties": {
     "global": {
       "type": "object",
-      "required": ["platform", "rootcx"],
+      "required": [
+        "platform",
+        "rootcx"
+      ],
       "properties": {
         "platform": {
           "type": "string",
-          "enum": ["auto", "kubernetes", "openshift"]
+          "enum": [
+            "auto",
+            "kubernetes",
+            "openshift"
+          ]
         },
         "rootcx": {
           "type": "object",
-          "required": ["portalPublicUrl", "corePublicUrl", "oidcIssuer", "oidcClientId"],
+          "required": [
+            "portalPublicUrl",
+            "corePublicUrl",
+            "oidcIssuer",
+            "oidcClientId"
+          ],
           "properties": {
             "deploymentMode": {
               "type": "string",
-              "enum": ["quickstart", "production"]
+              "enum": [
+                "quickstart",
+                "production"
+              ]
             },
-            "portalPublicUrl": {"type": "string", "pattern": "^https?://"},
-            "corePublicUrl": {"type": "string", "pattern": "^https?://"},
-            "oidcIssuer": {"type": "string", "pattern": "^https?://"},
-            "oidcClientId": {"type": "string", "minLength": 1},
-            "oidcClientSecret": {"type": "string"},
+            "portalPublicUrl": {
+              "type": "string",
+              "pattern": "^https?://"
+            },
+            "corePublicUrl": {
+              "type": "string",
+              "pattern": "^https?://"
+            },
+            "oidcIssuer": {
+              "type": "string",
+              "pattern": "^https?://"
+            },
+            "oidcClientId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "oidcClientSecret": {
+              "type": "string"
+            },
             "hosts": {
               "type": "object",
-              "required": ["portal", "core"],
+              "required": [
+                "portal",
+                "core"
+              ],
               "properties": {
-                "portal": {"type": "string", "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)+$"},
-                "core": {"type": "string", "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)+$"}
+                "portal": {
+                  "type": "string",
+                  "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)+$"
+                },
+                "core": {
+                  "type": "string",
+                  "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)+$"
+                }
               }
             },
             "tls": {
               "type": "object",
-              "required": ["secretName"],
+              "required": [
+                "secretName"
+              ],
               "properties": {
-                "secretName": {"type": "string", "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", "maxLength": 63},
+                "secretName": {
+                  "type": "string",
+                  "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+                  "maxLength": 63
+                },
                 "openshift": {
                   "type": "object",
-                  "required": ["createRouterRBAC", "routerServiceAccount"],
+                  "required": [
+                    "createRouterRBAC",
+                    "routerServiceAccount"
+                  ],
                   "properties": {
-                    "createRouterRBAC": {"type": "boolean"},
+                    "createRouterRBAC": {
+                      "type": "boolean"
+                    },
                     "routerServiceAccount": {
                       "type": "object",
-                      "required": ["namespace", "name"],
+                      "required": [
+                        "namespace",
+                        "name"
+                      ],
                       "properties": {
-                        "namespace": {"type": "string", "minLength": 1},
-                        "name": {"type": "string", "minLength": 1}
+                        "namespace": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        }
                       }
                     }
                   }
@@ -60,9 +126,16 @@
     },
     "instance": {
       "type": "object",
-      "required": ["name", "ref"],
+      "required": [
+        "name",
+        "ref"
+      ],
       "properties": {
-        "name": {"type": "string", "minLength": 1, "maxLength": 100},
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
         "ref": {
           "type": "string",
           "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
@@ -72,7 +145,9 @@
     },
     "bootstrap": {
       "type": "object",
-      "required": ["adminEmail"],
+      "required": [
+        "adminEmail"
+      ],
       "properties": {
         "adminEmail": {
           "type": "string",
@@ -82,71 +157,389 @@
     },
     "email": {
       "type": "object",
-      "required": ["enabled", "from", "smtp"],
+      "required": [
+        "enabled",
+        "from",
+        "smtp"
+      ],
       "properties": {
-        "enabled": {"type": "boolean"},
-        "from": {"type": "string"},
+        "enabled": {
+          "type": "boolean"
+        },
+        "from": {
+          "type": "string"
+        },
         "smtp": {
           "type": "object",
-          "required": ["host", "port", "secure", "requireTls", "username", "password"],
+          "required": [
+            "host",
+            "port",
+            "secure",
+            "requireTls",
+            "username",
+            "password"
+          ],
           "properties": {
-            "host": {"type": "string"},
-            "port": {"type": "integer", "minimum": 1, "maximum": 65535},
-            "secure": {"type": "boolean"},
-            "requireTls": {"type": "boolean"},
-            "username": {"type": "string"},
-            "password": {"type": "string"}
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "secure": {
+              "type": "boolean"
+            },
+            "requireTls": {
+              "type": "boolean"
+            },
+            "username": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            }
           }
         }
       }
     },
-    "replicaCount": {"type": "integer", "minimum": 1},
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1
+    },
     "image": {
       "type": "object",
-      "required": ["repository", "tag", "pullPolicy"],
+      "required": [
+        "repository",
+        "tag",
+        "pullPolicy"
+      ],
       "properties": {
-        "repository": {"type": "string", "minLength": 1},
-        "tag": {"type": "string", "minLength": 1},
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1
+        },
         "pullPolicy": {
           "type": "string",
-          "enum": ["Always", "IfNotPresent", "Never"]
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
         }
       }
     },
     "auth": {
       "type": "object",
-      "required": ["secret"],
+      "required": [
+        "secret"
+      ],
       "properties": {
         "secret": {
           "type": "string",
           "pattern": "^$|^.{32,}$"
         },
-        "trustHost": {"type": "boolean"}
+        "trustHost": {
+          "type": "boolean"
+        }
       }
     },
     "oidc": {
       "type": "object",
       "properties": {
-        "signingKey": {"type": "string"}
+        "signingKey": {
+          "type": "string"
+        }
       }
     },
     "service": {
       "type": "object",
-      "required": ["type", "port"],
+      "required": [
+        "type",
+        "port"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
+          "enum": [
+            "ClusterIP",
+            "NodePort",
+            "LoadBalancer"
+          ]
         },
-        "port": {"type": "integer", "minimum": 1, "maximum": 65535}
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
       }
     },
     "core": {
       "type": "object",
+      "required": [
+        "image",
+        "service",
+        "persistence",
+        "postgresql"
+      ],
       "properties": {
-        "existingSecret": {"type": "string"},
-        "jwtSecret": {"type": "string", "pattern": "^$|^.{32,}$"},
-        "masterKey": {"type": "string", "pattern": "^$|^[0-9a-fA-F]{64}$"}
+        "replicaCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "image": {
+          "type": "object",
+          "required": [
+            "repository",
+            "pullPolicy"
+          ],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "enum": [
+                "Always",
+                "IfNotPresent",
+                "Never"
+              ]
+            }
+          }
+        },
+        "publicUrl": {
+          "type": "string",
+          "pattern": "^$|^https?://"
+        },
+        "jwtSecret": {
+          "type": "string",
+          "pattern": "^$|^.{32,}$"
+        },
+        "masterKey": {
+          "type": "string",
+          "pattern": "^$|^[a-fA-F0-9]{64}$"
+        },
+        "disablePasswordLogin": {
+          "type": "string",
+          "enum": [
+            "true",
+            "false"
+          ]
+        },
+        "ai": {
+          "type": "object",
+          "required": [
+            "openai"
+          ],
+          "properties": {
+            "openai": {
+              "type": "object",
+              "required": [
+                "baseUrl"
+              ],
+              "properties": {
+                "baseUrl": {
+                  "type": "string",
+                  "pattern": "^$|^https?://"
+                }
+              }
+            }
+          }
+        },
+        "service": {
+          "type": "object",
+          "required": [
+            "type",
+            "port"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "ClusterIP",
+                "NodePort",
+                "LoadBalancer"
+              ]
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          }
+        },
+        "route": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "tls": {
+              "type": "object",
+              "properties": {
+                "termination": {
+                  "type": "string",
+                  "enum": [
+                    "edge",
+                    "reencrypt",
+                    "passthrough"
+                  ]
+                },
+                "insecureEdgeTerminationPolicy": {
+                  "type": "string",
+                  "enum": [
+                    "Allow",
+                    "Disable",
+                    "Redirect"
+                  ]
+                },
+                "externalCertificateSecretName": {
+                  "type": "string",
+                  "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+                  "maxLength": 63
+                },
+                "createRouterRBAC": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "persistence": {
+          "type": "object",
+          "required": [
+            "enabled",
+            "accessMode",
+            "size"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "accessMode": {
+              "type": "string",
+              "enum": [
+                "ReadWriteOnce",
+                "ReadWriteMany"
+              ]
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^[0-9]+(Ei|Pi|Ti|Gi|Mi|Ki)$"
+            }
+          }
+        },
+        "postgresql": {
+          "type": "object",
+          "required": [
+            "enabled",
+            "terminationGracePeriodSeconds",
+            "image",
+            "auth",
+            "persistence"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "terminationGracePeriodSeconds": {
+              "type": "integer",
+              "minimum": 30,
+              "maximum": 300
+            },
+            "image": {
+              "type": "object",
+              "required": [
+                "repository",
+                "tag",
+                "pullPolicy"
+              ],
+              "properties": {
+                "repository": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tag": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "pullPolicy": {
+                  "type": "string",
+                  "enum": [
+                    "Always",
+                    "IfNotPresent",
+                    "Never"
+                  ]
+                }
+              }
+            },
+            "auth": {
+              "type": "object",
+              "required": [
+                "username",
+                "database"
+              ],
+              "properties": {
+                "username": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                },
+                "database": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                },
+                "password": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]*$"
+                }
+              }
+            },
+            "extraDatabases": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+              }
+            },
+            "persistence": {
+              "type": "object",
+              "required": [
+                "enabled",
+                "accessMode",
+                "size"
+              ],
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "accessMode": {
+                  "type": "string",
+                  "enum": [
+                    "ReadWriteOnce",
+                    "ReadWriteMany"
+                  ]
+                },
+                "size": {
+                  "type": "string",
+                  "pattern": "^[0-9]+(Ei|Pi|Ti|Gi|Mi|Ki)$"
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

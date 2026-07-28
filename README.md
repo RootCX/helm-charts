@@ -1,6 +1,6 @@
 # RootCX Helm Charts
 
-Official open-source Helm charts for RootCX on Kubernetes and OpenShift.
+Official open-source Helm chart for RootCX on Kubernetes and OpenShift.
 
 ## Quickstart
 
@@ -32,17 +32,17 @@ kubectl port-forward service/rootcx 3000:3000
 Open <http://localhost:3000> and create the first account with
 `admin@rootcx.localhost`.
 
-Quickstart uses the embedded single-node PostgreSQL server, generates its
-application secrets on first install, and reuses them on upgrades. SMTP,
-Ingress and Routes remain disabled. Quickstart is intended for local evaluation,
-not production.
+The single `rootcx` chart installs Portal, Core and an embedded single-node
+PostgreSQL server. It generates application secrets on first install and reuses
+them on upgrades. SMTP, Ingress and Routes remain disabled. Quickstart is
+intended for local evaluation, not production.
 
 ## Production
 
 Production mode keeps all security-sensitive configuration explicit. Start from
 [`examples/values-kubernetes.yaml`](examples/values-kubernetes.yaml) or
 [`examples/values-openshift.yaml`](examples/values-openshift.yaml), configure
-real hosts, TLS, SMTP and durable secrets, then install:
+real hosts, TLS and durable secrets, then install:
 
 ```bash
 helm upgrade --install rootcx rootcx/rootcx \
@@ -54,19 +54,17 @@ helm upgrade --install rootcx rootcx/rootcx \
   --timeout 10m
 ```
 
-The production profile rejects missing administrator, SMTP, host and secret
-configuration. For high availability, backup and point-in-time recovery, use
-an externally operated PostgreSQL service instead of the embedded single-node
-server.
+SMTP is optional in every deployment mode. When disabled, Portal starts normally
+and email-dependent features remain unavailable. When enabled, configure the
+sender and SMTP relay; keep credentials in an existing Kubernetes Secret for
+production. For high availability, backup and point-in-time recovery, use an
+externally operated PostgreSQL service instead of the embedded single-node server.
 
-## Charts
+## Chart
 
-| Chart | Description |
-| --- | --- |
-| [`rootcx`](charts/rootcx) | Portal, Core and optional embedded PostgreSQL |
-| [`rootcx-core`](charts/rootcx-core) | Standalone Core and optional embedded PostgreSQL |
-
-Both charts auto-detect OpenShift through the Route API. An explicit
+[`rootcx`](charts/rootcx) is the only supported chart. It installs Portal, Core
+and optional embedded PostgreSQL. The chart auto-detects OpenShift through the
+Route API. An explicit
 `global.platform` value can still override detection.
 
 ## OpenAI-compatible AI gateway
@@ -87,8 +85,6 @@ in-cluster endpoints require exact `core.networkPolicy.extraEgress` rules.
 ## Development
 
 ```bash
-helm dependency build charts/rootcx
-helm lint charts/rootcx-core
 helm lint charts/rootcx
 helm template rootcx charts/rootcx
 ```

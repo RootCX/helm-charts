@@ -5,11 +5,6 @@
 {{- if eq .Values.bootstrap.adminEmail "admin@rootcx.localhost" -}}
 {{- fail "bootstrap.adminEmail must be explicitly configured in production" -}}
 {{- end -}}
-{{- if not .Values.email.enabled -}}
-{{- fail "email.enabled must be true in production" -}}
-{{- end -}}
-{{- $_ := required "email.from is required in production" .Values.email.from -}}
-{{- $_ := required "email.smtp.host is required in production" .Values.email.smtp.host -}}
 {{- if not .Values.existingSecret -}}
 {{- $_ := required "auth.secret is required in production unless existingSecret is set" .Values.auth.secret -}}
 {{- $_ := required "oidc.signingKey is required in production unless existingSecret is set" .Values.oidc.signingKey -}}
@@ -36,4 +31,8 @@
 {{- end -}}
 {{- if and $tlsSecret (eq .Values.route.tls.termination "passthrough") -}}
 {{- fail "an external TLS certificate cannot be used with passthrough Route termination" -}}
+{{- end -}}
+{{- if .Values.email.enabled -}}
+{{- $_ := required "email.from is required when email is enabled" .Values.email.from -}}
+{{- $_ := required "email.smtp.host is required when email is enabled" .Values.email.smtp.host -}}
 {{- end -}}

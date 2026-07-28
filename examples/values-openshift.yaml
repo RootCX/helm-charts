@@ -21,15 +21,16 @@ bootstrap:
   adminEmail: admin@example.com
 
 email:
-  enabled: true
-  from: RootCX <rootcx@example.com>
+  # Optional. Portal starts normally when email is disabled.
+  enabled: false
+  from: ""
   smtp:
-    host: smtp.example.com
+    host: ""
     port: 587
     secure: false
     requireTls: true
-    username: rootcx
-    password: REPLACE_WITH_SMTP_PASSWORD
+    username: ""
+    password: ""
 
 # Supply the PKCS#8 private key with:
 # --set-file oidc.signingKey=oidc-private-key.pem
