@@ -1,0 +1,61 @@
+apiVersion: v1
+entries:
+  rootcx:
+  - apiVersion: v2
+    appVersion: 1.0.4
+    created: "2026-07-28T13:16:23.609276222Z"
+    dependencies:
+    - alias: core
+      name: rootcx-core
+      repository: file://../rootcx-core
+      version: 0.5.0
+    description: RootCX Dedicated — Portal, Core, and PostgreSQL
+    digest: cdec086bdd876c9fdd388e024fbd596818266005606b35ddcabbf8f94d776c1c
+    home: https://rootcx.com
+    icon: https://rootcx.com/icon.png
+    keywords:
+    - ai
+    - portal
+    - dashboard
+    - management
+    kubeVersion: '>=1.28.0-0'
+    maintainers:
+    - email: sandro@rootcx.com
+      name: Sandro Munda
+      url: https://rootcx.com
+    name: rootcx
+    sources:
+    - https://github.com/RootCX/RootCX
+    - https://github.com/RootCX/helm-charts
+    type: application
+    urls:
+    - rootcx-0.5.1.tgz
+    version: 0.5.1
+  rootcx-core:
+  - apiVersion: v2
+    appVersion: 0.21.1
+    created: "2026-07-28T13:16:23.79138437Z"
+    description: RootCX Core — AI application runtime with governance, permissions,
+      audit, and SSO
+    digest: 142b19bd1867ecdddcbbf41527367cdb65b334bc3112248bfddd76b6d5a804f2
+    home: https://rootcx.com
+    icon: https://rootcx.com/icon.png
+    keywords:
+    - ai
+    - agents
+    - governance
+    - internal-tools
+    - platform
+    kubeVersion: '>=1.28.0-0'
+    maintainers:
+    - email: sandro@rootcx.com
+      name: Sandro Munda
+      url: https://rootcx.com
+    name: rootcx-core
+    sources:
+    - https://github.com/RootCX/RootCX
+    type: application
+    urls:
+    - rootcx-core-0.5.0.tgz
+    version: 0.5.0
+generated: "2026-07-28T13:16:23.791389339Z"
