@@ -9,11 +9,15 @@
       "properties": {
         "platform": {
           "type": "string",
-          "enum": ["kubernetes", "openshift"]
+          "enum": ["auto", "kubernetes", "openshift"]
         },
         "rootcx": {
           "type": "object",
           "properties": {
+            "deploymentMode": {
+              "type": "string",
+              "enum": ["quickstart", "production"]
+            },
             "hosts": {
               "type": "object",
               "properties": {

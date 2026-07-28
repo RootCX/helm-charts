@@ -1,13 +1,13 @@
-{{- $managedHost := dig "hosts" "core" "" .Values.global.rootcx -}}
+{{- $managedHost := dig "hosts" "portal" "" .Values.global.rootcx -}}
 {{- $tlsSecret := dig "tls" "secretName" "" .Values.global.rootcx -}}
-{{- $managed := and (eq (include "rootcx-core.platform" .) "kubernetes") $managedHost -}}
+{{- $managed := and (eq (include "rootcx-portal.platform" .) "kubernetes") $managedHost -}}
 {{- if or .Values.ingress.enabled $managed -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "rootcx-core.fullname" . }}
+  name: {{ include "rootcx-portal.fullname" . }}
   labels:
-    {{- include "rootcx-core.labels" . | nindent 4 }}
+    {{- include "rootcx-portal.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -40,7 +40,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "rootcx-core.fullname" . }}
+                name: {{ include "rootcx-portal.fullname" . }}
                 port:
                   name: http
     {{- else }}
@@ -53,7 +53,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ include "rootcx-core.fullname" $ }}
+                name: {{ include "rootcx-portal.fullname" $ }}
                 port:
                   name: http
           {{- end }}

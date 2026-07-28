@@ -1,0 +1,55 @@
+global:
+  platform: openshift
+  rootcx:
+    deploymentMode: production
+    # Replace both placeholders with real FQDNs that already resolve to the
+    # OpenShift router. The chart derives all HTTPS and OIDC URLs from them.
+    hosts:
+      portal: REPLACE_WITH_PORTAL_FQDN
+      core: REPLACE_WITH_CORE_FQDN
+    # Optional when OpenShift's default ingress certificate is already trusted
+    # and covers both hosts.
+    tls:
+      secretName: rootcx-tls
+    oidcClientId: rootcx-dedicated
+    oidcClientSecret: REPLACE_WITH_RANDOM_VALUE
+
+auth:
+  secret: REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS
+
+bootstrap:
+  adminEmail: admin@example.com
+
+email:
+  enabled: true
+  from: RootCX <rootcx@example.com>
+  smtp:
+    host: smtp.example.com
+    port: 587
+    secure: false
+    requireTls: true
+    username: rootcx
+    password: REPLACE_WITH_SMTP_PASSWORD
+
+# Supply the PKCS#8 private key with:
+# --set-file oidc.signingKey=oidc-private-key.pem
+
+core:
+  jwtSecret: REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS
+  masterKey: REPLACE_WITH_64_HEXADECIMAL_CHARACTERS
+  # Obtain this exact URL from the customer's AI platform team. The chart does
+  # not guess a domain or path. Leave empty only when using public OpenAI.
+  ai:
+    openai:
+      baseUrl: ""
+  postgresql:
+    auth:
+      password: REPLACE_WITH_URL_SAFE_PASSWORD
+  # Set trustedCA when the AI Gateway or another HTTPS dependency uses an
+  # internal CA. The referenced ConfigMap must contain ca-bundle.crt.
+  trustedCA: ""
+  networkPolicy:
+    enabled: true
+    # Add the exact private gateway namespace selector, pod selector, or CIDR
+    # supplied by the platform team. RFC1918 egress is otherwise denied.
+    extraEgress: []

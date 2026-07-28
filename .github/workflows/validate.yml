@@ -9,55 +9,110 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  render:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-helm@v4
         with:
           version: v3.19.0
-      - name: Lint
-        run: helm lint charts/rootcx-core --set-string postgresql.auth.password=validation-only
-      - name: Render Kubernetes
-        run: >-
-          helm template rootcx charts/rootcx-core
-          --set-string postgresql.auth.password=validation-only
-          > /tmp/rootcx-kubernetes.yaml
-      - name: Render OpenShift
-        run: >-
-          helm template rootcx charts/rootcx-core
-          --set-string global.platform=openshift
-          --set-string postgresql.auth.password=validation-only
-          --set route.enabled=true
-          > /tmp/rootcx-openshift.yaml
-      - name: Render managed TLS exposure
+      - name: Build pinned dependencies
+        run: helm dependency build charts/rootcx
+      - name: Lint zero-configuration quickstart
         run: |
-          helm template rootcx charts/rootcx-core \
-            --set-string postgresql.auth.password=validation-only \
-            --set-string global.platform=kubernetes \
-            --set-string global.rootcx.hosts.core=core.rootcx.invalid \
-            --set-string global.rootcx.tls.secretName=rootcx-tls \
-            > /tmp/rootcx-managed-kubernetes.yaml
-          helm template rootcx charts/rootcx-core \
-            --set-string postgresql.auth.password=validation-only \
-            --set-string global.platform=openshift \
-            --set-string global.rootcx.hosts.core=core.rootcx.invalid \
-            --set-string global.rootcx.tls.secretName=rootcx-tls \
-            > /tmp/rootcx-managed-openshift.yaml
-          grep -q 'secretName: "rootcx-tls"' /tmp/rootcx-managed-kubernetes.yaml
-          grep -q 'externalCertificate:' /tmp/rootcx-managed-openshift.yaml
-          grep -q 'name: "rootcx-tls"' /tmp/rootcx-managed-openshift.yaml
-          test "$(grep -c '^kind: RoleBinding$' /tmp/rootcx-managed-openshift.yaml)" -eq 1
-          if helm template rootcx charts/rootcx-core \
-            --set-string postgresql.auth.password=validation-only \
-            --set-string global.rootcx.tls.secretName=rootcx-tls \
-            >/dev/null 2>&1; then
-            echo "TLS Secret without a real host should be rejected"
+          helm lint charts/rootcx-core
+          helm lint charts/rootcx
+      - name: Render Kubernetes quickstart
+        run: helm template rootcx charts/rootcx > /tmp/rootcx-quickstart.yaml
+      - name: Validate generated quickstart configuration
+        run: |
+          grep -Eq 'ROOTCX_MASTER_KEY: "[0-9a-f]{64}"' /tmp/rootcx-quickstart.yaml
+          grep -q 'ROOTCX_DATABASE_PASSWORD' /tmp/rootcx-quickstart.yaml
+          grep -q 'OIDC_SIGNING_KEY: "-----BEGIN RSA PRIVATE KEY-----' /tmp/rootcx-quickstart.yaml
+          if grep -q 'name: SMTP_HOST' /tmp/rootcx-quickstart.yaml; then
+            echo "Quickstart must not require SMTP"
             exit 1
           fi
-      - name: Ensure no fixed OpenShift identities
+      - name: Render auto-detected OpenShift quickstart
+        run: >-
+          helm template rootcx charts/rootcx
+          --api-versions route.openshift.io/v1/Route
+          > /tmp/rootcx-openshift.yaml
+      - name: Ensure OpenShift output uses arbitrary UIDs
         run: |
           if grep -Eq 'runAs(User|Group):|fsGroup:' /tmp/rootcx-openshift.yaml; then
             echo "OpenShift output contains a fixed identity"
             exit 1
           fi
+          grep -q 'kubernetes.io/metadata.name: openshift-dns' /tmp/rootcx-openshift.yaml
+          grep -q 'port: 5353' /tmp/rootcx-openshift.yaml
+      - name: Generate production validation key
+        run: openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/oidc-private-key.pem
+      - name: Render explicit production profile
+        run: |
+          helm template rootcx charts/rootcx \
+            --set-string global.platform=kubernetes \
+            --set-string global.rootcx.deploymentMode=production \
+            --set-string global.rootcx.hosts.portal=portal.rootcx.invalid \
+            --set-string global.rootcx.hosts.core=core.rootcx.invalid \
+            --set-string global.rootcx.oidcClientSecret=validation-only \
+            --set-string bootstrap.adminEmail=admin@rootcx.invalid \
+            --set email.enabled=true \
+            --set-string email.from=rootcx@rootcx.invalid \
+            --set-string email.smtp.host=smtp.rootcx.invalid \
+            --set-string auth.secret=0123456789abcdef0123456789abcdef \
+            --set-file oidc.signingKey=/tmp/oidc-private-key.pem \
+            --set-string core.jwtSecret=0123456789abcdef0123456789abcdef \
+            --set-string core.masterKey=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+            --set-string core.postgresql.auth.password=validation-only \
+            > /tmp/rootcx-production.yaml
+          grep -q 'name: SMTP_HOST' /tmp/rootcx-production.yaml
+      - name: Reject incomplete production configuration
+        run: |
+          if helm template rootcx charts/rootcx \
+            --set-string global.rootcx.deploymentMode=production \
+            >/dev/null 2>&1; then
+            echo "Incomplete production values must be rejected"
+            exit 1
+          fi
+
+  install:
+    runs-on: ubuntu-24.04
+    needs: render
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
+      - uses: helm/kind-action@v1
+      - name: Build pinned dependencies
+        run: helm dependency build charts/rootcx
+      - name: Install the zero-configuration quickstart
+        run: |
+          helm install rootcx charts/rootcx \
+            --namespace rootcx \
+            --create-namespace \
+            --set core.persistence.enabled=false \
+            --set core.postgresql.persistence.enabled=false \
+            --wait \
+            --timeout 10m
+          helm test rootcx --namespace rootcx --timeout 5m
+      - name: Upgrade without rotating generated secrets
+        run: |
+          kubectl get secret rootcx -n rootcx -o jsonpath='{.data.AUTH_SECRET}' > /tmp/portal-secret.before
+          kubectl get secret rootcx-core -n rootcx -o jsonpath='{.data.ROOTCX_MASTER_KEY}' > /tmp/core-secret.before
+          helm upgrade rootcx charts/rootcx \
+            --namespace rootcx \
+            --set core.persistence.enabled=false \
+            --set core.postgresql.persistence.enabled=false \
+            --wait \
+            --timeout 10m
+          kubectl get secret rootcx -n rootcx -o jsonpath='{.data.AUTH_SECRET}' > /tmp/portal-secret.after
+          kubectl get secret rootcx-core -n rootcx -o jsonpath='{.data.ROOTCX_MASTER_KEY}' > /tmp/core-secret.after
+          cmp /tmp/portal-secret.before /tmp/portal-secret.after
+          cmp /tmp/core-secret.before /tmp/core-secret.after
+          helm test rootcx --namespace rootcx --timeout 5m
+      - name: Roll back successfully
+        run: |
+          helm rollback rootcx 1 --namespace rootcx --wait --timeout 10m
+          helm test rootcx --namespace rootcx --timeout 5m

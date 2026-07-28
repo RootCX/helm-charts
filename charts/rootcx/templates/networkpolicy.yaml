@@ -1,0 +1,64 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "rootcx-portal.fullname" . }}
+  labels:
+    {{- include "rootcx-portal.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "rootcx-portal.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000
+    - from:
+        - namespaceSelector:
+            {{- if eq (include "rootcx-portal.platform" .) "openshift" }}
+            matchLabels:
+              policy-group.network.openshift.io/ingress: ""
+            {{- else if .Values.networkPolicy.ingress.namespaceSelector }}
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.ingress.namespaceSelector | nindent 14 }}
+            {{- else }}
+            {}
+            {{- end }}
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- if eq (include "rootcx-portal.platform" .) "openshift" }}
+              kubernetes.io/metadata.name: openshift-dns
+              {{- else }}
+              {{- toYaml .Values.networkPolicy.egress.dnsNamespaceSelector | nindent 14 }}
+              {{- end }}
+      ports:
+        - protocol: UDP
+          port: {{ ternary 5353 .Values.networkPolicy.egress.dnsPort (eq (include "rootcx-portal.platform" .) "openshift") }}
+        - protocol: TCP
+          port: {{ ternary 5353 .Values.networkPolicy.egress.dnsPort (eq (include "rootcx-portal.platform" .) "openshift") }}
+    - to:
+        - podSelector: {}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+        {{- if .Values.email.enabled }}
+        - protocol: TCP
+          port: {{ .Values.email.smtp.port }}
+        {{- end }}
+    {{- with .Values.networkPolicy.egress.extraRules }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

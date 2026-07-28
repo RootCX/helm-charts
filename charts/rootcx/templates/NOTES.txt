@@ -1,0 +1,23 @@
+RootCX Dedicated is installed in namespace {{ .Release.Namespace }}.
+
+Portal service: {{ include "rootcx-portal.fullname" . }}:{{ .Values.service.port }}
+Core service:   {{ include "rootcx-portal.coreServiceName" . }}:9100
+
+{{- if or .Values.route.enabled .Values.ingress.enabled (dig "hosts" "portal" "" .Values.global.rootcx) }}
+Portal URL: {{ include "rootcx-portal.portalPublicUrl" . }}
+{{- else }}
+Local Portal access:
+  kubectl port-forward --namespace {{ .Release.Namespace }} service/{{ include "rootcx-portal.fullname" . }} 3000:{{ .Values.service.port }}
+{{- end }}
+{{- if or .Values.core.ingress.enabled .Values.core.route.enabled (dig "hosts" "core" "" .Values.global.rootcx) }}
+Core URL: {{ include "rootcx-portal.corePublicUrl" . }}
+{{- else }}
+Local Core access:
+  kubectl port-forward --namespace {{ .Release.Namespace }} service/{{ include "rootcx-portal.coreServiceName" . }} 9100:9100
+{{- end }}
+
+Bootstrap administrator: {{ .Values.bootstrap.adminEmail }}
+Open the Portal and register this address to initialize the workspace.
+After initialization, additional users must be invited from Team.
+
+Infrastructure lifecycle is managed with Helm.

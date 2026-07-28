@@ -3,9 +3,11 @@
 # This file documents every configurable parameter.
 
 global:
-  # -- Target platform: kubernetes or openshift
-  platform: kubernetes
+  # -- Target platform. auto detects OpenShift APIs and otherwise uses Kubernetes.
+  platform: auto
   rootcx:
+    # -- quickstart generates local secrets; production requires explicit values.
+    deploymentMode: quickstart
     corePublicUrl: ""
     oidcIssuer: ""
     oidcClientId: ""
@@ -85,10 +87,10 @@ securityContext:
 # Format: postgres://user:password@host:port/dbname
 databaseUrl: ""
 
-# -- JWT signing secret (auto-generated if empty)
+# -- JWT signing secret. Auto-generated and preserved in quickstart mode.
 jwtSecret: ""
 
-# -- Master encryption key for secrets vault (hex-encoded, auto-generated if empty)
+# -- Master encryption key. Auto-generated and preserved in quickstart mode.
 masterKey: ""
 
 # -- Public URL of this RootCX instance (used for OIDC callbacks, magic links)
@@ -235,7 +237,8 @@ postgresql:
 
   auth:
     username: rootcx
-    password: ""  # REQUIRED if postgresql.enabled=true
+    # Auto-generated and preserved in quickstart mode; required in production.
+    password: ""
     database: rootcx
 
   # -- Additional databases created in the same PostgreSQL server on first initialization

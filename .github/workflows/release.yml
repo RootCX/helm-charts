@@ -1,11 +1,14 @@
-name: Release Helm chart
+name: Publish Helm repository
 
 on:
+  workflow_dispatch:
   push:
-    tags: ["rootcx-core-chart-v*"]
+    branches: [master]
+    paths:
+      - "charts/**"
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -13,18 +16,38 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: azure/setup-helm@v4
         with:
           version: v3.19.0
-      - name: Verify tag matches Chart.yaml
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and validate charts
         run: |
-          expected="rootcx-core-chart-v$(helm show chart charts/rootcx-core | awk '/^version:/{print $2}')"
-          test "$GITHUB_REF_NAME" = "$expected"
-      - name: Lint and package
+          helm dependency build charts/rootcx
+          helm lint charts/rootcx-core
+          helm lint charts/rootcx
+      - name: Verify referenced public images exist
         run: |
-          helm lint charts/rootcx-core --set-string postgresql.auth.password=validation-only
-          helm package charts/rootcx-core --destination dist
+          helm template rootcx charts/rootcx \
+            | awk '/^[[:space:]]*image: / {gsub(/[",]/, "", $2); print $2}' \
+            | sort -u \
+            | while read -r image; do
+                docker buildx imagetools inspect "$image" >/dev/null
+              done
+      - name: Publish GitHub releases and Helm index
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          charts_dir: charts
+          packages_with_index: true
+          skip_existing: true
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
       - name: Authenticate to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
-      - name: Publish immutable OCI chart
-        run: helm push dist/rootcx-core-*.tgz oci://ghcr.io/rootcx/charts
+      - name: Publish immutable OCI charts
+        run: |
+          for chart in .cr-release-packages/*.tgz; do
+            [ -e "$chart" ] || continue
+            helm push "$chart" oci://ghcr.io/rootcx/charts
+          done

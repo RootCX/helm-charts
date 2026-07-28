@@ -1,0 +1,49 @@
+global:
+  platform: kubernetes
+  rootcx:
+    deploymentMode: production
+    # Replace both placeholders with real FQDNs that already resolve to the
+    # Kubernetes ingress controller.
+    hosts:
+      portal: REPLACE_WITH_PORTAL_FQDN
+      core: REPLACE_WITH_CORE_FQDN
+    tls:
+      secretName: rootcx-tls
+    oidcClientId: rootcx-dedicated
+    oidcClientSecret: REPLACE_WITH_RANDOM_VALUE
+
+auth:
+  secret: REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS
+
+bootstrap:
+  adminEmail: admin@example.com
+
+email:
+  enabled: true
+  from: RootCX <rootcx@example.com>
+  smtp:
+    host: smtp.example.com
+    port: 587
+    secure: false
+    requireTls: true
+    username: rootcx
+    password: REPLACE_WITH_SMTP_PASSWORD
+
+# Supply the PKCS#8 private key with:
+# --set-file oidc.signingKey=oidc-private-key.pem
+
+ingress:
+  className: nginx
+
+core:
+  jwtSecret: REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS
+  masterKey: REPLACE_WITH_64_HEXADECIMAL_CHARACTERS
+  ai:
+    openai:
+      # Replace only with the exact OpenAI-compatible gateway URL.
+      baseUrl: ""
+  ingress:
+    className: nginx
+  postgresql:
+    auth:
+      password: REPLACE_WITH_URL_SAFE_PASSWORD

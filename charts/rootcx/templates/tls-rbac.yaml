@@ -1,15 +1,14 @@
-{{- $secretName := include "rootcx-core.tlsSecretName" . -}}
+{{- $secretName := dig "tls" "secretName" "" .Values.global.rootcx -}}
 {{- $createRBAC := dig "tls" "openshift" "createRouterRBAC" true .Values.global.rootcx -}}
-{{- $createCoreRBAC := dig "createRouterRBAC" true .Values.route.tls -}}
 {{- $routerNamespace := dig "tls" "openshift" "routerServiceAccount" "namespace" "openshift-ingress" .Values.global.rootcx -}}
 {{- $routerName := dig "tls" "openshift" "routerServiceAccount" "name" "router" .Values.global.rootcx -}}
-{{- if and (eq (include "rootcx-core.platform" .) "openshift") $secretName $createRBAC $createCoreRBAC -}}
+{{- if and (eq (include "rootcx-portal.platform" .) "openshift") $secretName $createRBAC -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "rootcx-core.fullname" . }}-tls-secret-reader
+  name: {{ include "rootcx-portal.fullname" . }}-tls-secret-reader
   labels:
-    {{- include "rootcx-core.labels" . | nindent 4 }}
+    {{- include "rootcx-portal.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -19,13 +18,13 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "rootcx-core.fullname" . }}-tls-secret-reader
+  name: {{ include "rootcx-portal.fullname" . }}-tls-secret-reader
   labels:
-    {{- include "rootcx-core.labels" . | nindent 4 }}
+    {{- include "rootcx-portal.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "rootcx-core.fullname" . }}-tls-secret-reader
+  name: {{ include "rootcx-portal.fullname" . }}-tls-secret-reader
 subjects:
   - kind: ServiceAccount
     name: {{ $routerName | quote }}

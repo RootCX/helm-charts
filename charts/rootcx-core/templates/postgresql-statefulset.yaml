@@ -31,7 +31,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.postgresql.terminationGracePeriodSeconds }}
       {{- with .Values.postgresql.podSecurityContext }}
       securityContext:
-        {{- if eq $.Values.global.platform "openshift" }}
+        {{- if eq (include "rootcx-core.platform" $) "openshift" }}
         {{- omit . "fsGroup" "fsGroupChangePolicy" | toYaml | nindent 8 }}
         {{- else }}
         {{- toYaml . | nindent 8 }}

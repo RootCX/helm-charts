@@ -1,0 +1,235 @@
+# RootCX dedicated platform
+
+global:
+  # -- auto detects OpenShift APIs and otherwise uses Kubernetes.
+  platform: auto
+  rootcx:
+    # -- quickstart generates local secrets; production requires explicit values.
+    deploymentMode: quickstart
+    # Public URLs visible from users' browsers.
+    portalPublicUrl: "http://localhost:3000"
+    corePublicUrl: "http://localhost:9100"
+    oidcIssuer: "http://localhost:3000"
+    oidcClientId: "rootcx-dedicated"
+    # Required. Supply through a protected values file or --set-string.
+    oidcClientSecret: ""
+    # Canonical real FQDNs controlled by the installing organization. When
+    # both are set, the chart derives every public HTTPS and OIDC URL and
+    # creates an Ingress or OpenShift Route for the selected platform.
+    hosts:
+      portal: ""
+      core: ""
+    # Optional kubernetes.io/tls Secret in the release namespace. The same
+    # certificate must cover both hosts. Leave empty only when the platform's
+    # default certificate is trusted and covers both hosts.
+    tls:
+      secretName: ""
+      openshift:
+        # OpenShift external certificates require the router service account to
+        # read the referenced Secret. The chart creates namespace-scoped RBAC
+        # limited to that Secret.
+        createRouterRBAC: true
+        routerServiceAccount:
+          namespace: openshift-ingress
+          name: router
+
+instance:
+  name: "RootCX"
+  ref: "rootcx"
+
+bootstrap:
+  # Only this email may initialize the first workspace administrator.
+  # After initialization, all additional accounts require an invitation.
+  adminEmail: "admin@rootcx.localhost"
+
+email:
+  # Disabled for quickstart. Production validation requires a real SMTP relay.
+  enabled: false
+  # Dedicated installations use the organization's SMTP relay. Credentials are
+  # optional for trusted in-cluster relays; when username is set, password is
+  # required in this values file or in existingSecret.
+  from: ""
+  smtp:
+    host: ""
+    port: 587
+    secure: false
+    requireTls: true
+    username: ""
+    password: ""
+
+replicaCount: 1
+
+strategy:
+  # Database migrations run before Portal starts; keep them single-writer.
+  type: Recreate
+
+image:
+  repository: ghcr.io/rootcx/portal
+  tag: "1.0.3"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Existing Secret containing DATABASE_URL, AUTH_SECRET/NEXTAUTH_SECRET,
+# OIDC_SIGNING_KEY, ROOTCX_OIDC_CLIENT_SECRET, and SMTP_PASSWORD when SMTP
+# authentication is enabled. When set, the chart does not create a Secret.
+existingSecret: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+# Do not set runAsUser: OpenShift assigns an arbitrary UID from the namespace
+# range. On Kubernetes the image USER (1001) is used, and fsGroup makes the
+# writable cache volume accessible to that user.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+  # Omitted automatically when global.platform=openshift.
+  fsGroup: 1001
+  fsGroupChangePolicy: OnRootMismatch
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+portalDatabase:
+  name: portal
+  # Optional full URL. By default the shared Core PostgreSQL service is used.
+  url: ""
+
+auth:
+  # Required. Used to sign Portal sessions.
+  secret: ""
+  trustHost: true
+
+oidc:
+  # PEM-encoded RSA private key used to sign OIDC tokens. Required unless
+  # existingSecret is set.
+  signingKey: ""
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: portal.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+route:
+  enabled: false
+  host: ""
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "768Mi"
+    cpu: "500m"
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+  ingress:
+    namespaceSelector: {}
+  egress:
+    # Kubernetes DNS defaults. OpenShift uses 5353.
+    dnsPort: 53
+    dnsNamespaceSelector:
+      kubernetes.io/metadata.name: kube-system
+    extraRules: []
+
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+startupProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 24
+
+extraEnvVars: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Values for the bundled public rootcx-core dependency.
+core:
+  image:
+    repository: ghcr.io/rootcx/core
+    tag: "0.21.1"
+    pullPolicy: IfNotPresent
+  publicUrl: ""
+  # Required unless core.existingSecret is set. Keep both values unchanged
+  # across upgrades; masterKey protects the encrypted application secret vault.
+  jwtSecret: ""
+  masterKey: ""
+  ai:
+    openai:
+      # Exact OpenAI Chat Completions-compatible gateway base URL, commonly
+      # ending in /v1. Leave empty to use the public OpenAI default.
+      baseUrl: ""
+  persistence:
+    enabled: true
+    size: 5Gi
+  postgresql:
+    enabled: true
+    image:
+      repository: ghcr.io/rootcx/postgresql
+      tag: "16-pgmq1.5.0-rootcx1"
+      pullPolicy: IfNotPresent
+    auth:
+      username: rootcx
+      password: ""
+      database: rootcx
+    extraDatabases:
+      - portal
+    persistence:
+      enabled: true
+      size: 10Gi
+  ingress:
+    enabled: false
+  route:
+    enabled: false
+    tls:
+      # The umbrella chart creates the shared router permission once.
+      createRouterRBAC: false
+  networkPolicy:
+    enabled: true

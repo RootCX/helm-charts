@@ -5,6 +5,19 @@ Expand the name of the chart.
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
+{{/* Resolve auto to OpenShift only when the Route API is available. */}}
+{{- define "rootcx-core.platform" -}}
+{{- if eq .Values.global.platform "auto" -}}
+{{- if .Capabilities.APIVersions.Has "route.openshift.io/v1/Route" -}}openshift{{- else -}}kubernetes{{- end -}}
+{{- else -}}
+{{- .Values.global.platform -}}
+{{- end -}}
+{{- end }}
+
+{{- define "rootcx-core.deploymentMode" -}}
+{{- dig "deploymentMode" "quickstart" .Values.global.rootcx -}}
+{{- end }}
+
 {{/* OIDC values may be supplied by an umbrella chart through global.rootcx. */}}
 {{- define "rootcx-core.oidcIssuer" -}}
 {{- $portalHost := dig "hosts" "portal" "" .Values.global.rootcx -}}
@@ -22,7 +35,12 @@ Expand the name of the chart.
 {{- end }}
 
 {{- define "rootcx-core.oidcClientSecret" -}}
-{{- default .Values.global.rootcx.oidcClientSecret .Values.oidc.clientSecret -}}
+{{- $configured := default .Values.global.rootcx.oidcClientSecret .Values.oidc.clientSecret -}}
+{{- if $configured -}}
+{{- $configured -}}
+{{- else if eq (include "rootcx-core.deploymentMode" .) "quickstart" -}}
+rootcx-local
+{{- end -}}
 {{- end }}
 
 {{- define "rootcx-core.publicUrl" -}}
@@ -107,20 +125,4 @@ PostgreSQL fully qualified name
 */}}
 {{- define "rootcx-core.postgresql.fullname" -}}
 {{- printf "%s-postgresql" (include "rootcx-core.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-Database URL — use provided value or build from embedded postgresql
-*/}}
-{{- define "rootcx-core.databaseUrl" -}}
-{{- if .Values.databaseUrl }}
-{{- .Values.databaseUrl }}
-{{- else if .Values.postgresql.enabled }}
-{{- if not .Values.postgresql.auth.password }}
-{{- fail "postgresql.auth.password is required when postgresql.enabled=true" }}
-{{- end }}
-{{- printf "postgres://%s:%s@%s:5432/%s" .Values.postgresql.auth.username .Values.postgresql.auth.password (include "rootcx-core.postgresql.fullname" .) .Values.postgresql.auth.database }}
-{{- else }}
-{{- fail "Either databaseUrl or postgresql.enabled must be set" }}
-{{- end }}
 {{- end }}

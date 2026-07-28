@@ -13,11 +13,11 @@ spec:
     - Ingress
     - Egress
   ingress:
-    {{- if or (eq .Values.global.platform "openshift") .Values.networkPolicy.ingressNamespaceSelector }}
+    {{- if or (eq (include "rootcx-core.platform" .) "openshift") .Values.networkPolicy.ingressNamespaceSelector }}
     - from:
         - namespaceSelector:
             matchLabels:
-              {{- if eq .Values.global.platform "openshift" }}
+              {{- if eq (include "rootcx-core.platform" .) "openshift" }}
               policy-group.network.openshift.io/ingress: ""
               {{- else }}
               {{- toYaml .Values.networkPolicy.ingressNamespaceSelector | nindent 14 }}
@@ -33,16 +33,16 @@ spec:
     - to:
         - namespaceSelector:
             matchLabels:
-              {{- if eq .Values.global.platform "openshift" }}
+              {{- if eq (include "rootcx-core.platform" .) "openshift" }}
               kubernetes.io/metadata.name: openshift-dns
               {{- else }}
               {{- toYaml .Values.networkPolicy.dnsNamespaceSelector | nindent 14 }}
               {{- end }}
       ports:
         - protocol: UDP
-          port: {{ ternary 5353 .Values.networkPolicy.dnsPort (eq .Values.global.platform "openshift") }}
+          port: {{ ternary 5353 .Values.networkPolicy.dnsPort (eq (include "rootcx-core.platform" .) "openshift") }}
         - protocol: TCP
-          port: {{ ternary 5353 .Values.networkPolicy.dnsPort (eq .Values.global.platform "openshift") }}
+          port: {{ ternary 5353 .Values.networkPolicy.dnsPort (eq (include "rootcx-core.platform" .) "openshift") }}
     - to:
         - podSelector: {}
     {{- with .Values.networkPolicy.extraEgress }}

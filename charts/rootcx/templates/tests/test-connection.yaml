@@ -1,32 +1,32 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: "{{ include "rootcx-core.fullname" . }}-test-connection"
+  name: {{ include "rootcx-portal.fullname" . }}-test
   labels:
-    {{- include "rootcx-core.labels" . | nindent 4 }}
+    {{- include "rootcx-portal.labels" . | nindent 4 }}
   annotations:
-    "helm.sh/hook": test
-    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 spec:
   automountServiceAccountToken: false
+  restartPolicy: Never
   securityContext:
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
   containers:
-    - name: core
+    - name: portal
       image: curlimages/curl:8.17.0
       args:
         - --fail
         - --silent
         - --show-error
-        - http://{{ include "rootcx-core.fullname" . }}:{{ .Values.service.port }}/health
+        - http://{{ include "rootcx-portal.fullname" . }}:{{ .Values.service.port }}/api/ready
       securityContext:
         allowPrivilegeEscalation: false
-        {{- if ne (include "rootcx-core.platform" .) "openshift" }}
+        {{- if ne (include "rootcx-portal.platform" .) "openshift" }}
         runAsUser: 100
         runAsGroup: 101
         {{- end }}
         capabilities:
           drop: ["ALL"]
-  restartPolicy: Never

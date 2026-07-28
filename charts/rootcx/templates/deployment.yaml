@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rootcx-portal.fullname" . }}
+  labels:
+    {{- include "rootcx-portal.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "rootcx-portal.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- if or (not .Values.existingSecret) .Values.podAnnotations }}
+      annotations:
+        {{- if not .Values.existingSecret }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      labels:
+        {{- include "rootcx-portal.selectorLabels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "rootcx-portal.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- if eq (include "rootcx-portal.platform" $) "openshift" }}
+        {{- omit . "fsGroup" "fsGroupChangePolicy" | toYaml | nindent 8 }}
+        {{- else }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: portal
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: ROOTCX_DEPLOYMENT_PROFILE
+              value: "dedicated"
+            - name: ROOTCX_PROVIDER
+              value: "dedicated"
+            - name: ROOTCX_BOOTSTRAP_ADMIN_EMAIL
+              value: {{ required "bootstrap.adminEmail is required" .Values.bootstrap.adminEmail | quote }}
+            - name: ROOTCX_CORE_INTERNAL_URL
+              value: {{ include "rootcx-portal.coreInternalUrl" . | quote }}
+            - name: ROOTCX_CORE_PUBLIC_URL
+              value: {{ include "rootcx-portal.corePublicUrl" . | quote }}
+            {{- if .Values.core.postgresql.enabled }}
+            - name: ROOTCX_DATABASE_HOST
+              value: {{ include "rootcx-portal.corePostgresqlServiceName" . | quote }}
+            - name: ROOTCX_DATABASE_USERNAME
+              value: {{ .Values.core.postgresql.auth.username | quote }}
+            - name: ROOTCX_DATABASE_NAME
+              value: {{ .Values.portalDatabase.name | quote }}
+            - name: ROOTCX_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rootcx-portal.coreSecretName" . }}
+                  key: POSTGRES_PASSWORD
+            {{- end }}
+            - name: ROOTCX_OIDC_CLIENT_ID
+              value: {{ .Values.global.rootcx.oidcClientId | quote }}
+            - name: ROOTCX_INSTANCE_REF
+              value: {{ .Values.instance.ref | quote }}
+            - name: ROOTCX_INSTANCE_NAME
+              value: {{ .Values.instance.name | quote }}
+            - name: AUTH_URL
+              value: {{ include "rootcx-portal.portalPublicUrl" . | quote }}
+            - name: NEXTAUTH_URL
+              value: {{ include "rootcx-portal.portalPublicUrl" . | quote }}
+            - name: WEBSITE_BASE_URL
+              value: {{ include "rootcx-portal.portalPublicUrl" . | quote }}
+            - name: AUTH_TRUST_HOST
+              value: {{ .Values.auth.trustHost | quote }}
+            {{- if .Values.email.enabled }}
+            - name: ROOTCX_EMAIL_PROVIDER
+              value: "smtp"
+            - name: ROOTCX_EMAIL_FROM
+              value: {{ .Values.email.from | quote }}
+            - name: SMTP_HOST
+              value: {{ .Values.email.smtp.host | quote }}
+            - name: SMTP_PORT
+              value: {{ .Values.email.smtp.port | quote }}
+            - name: SMTP_SECURE
+              value: {{ .Values.email.smtp.secure | quote }}
+            - name: SMTP_REQUIRE_TLS
+              value: {{ .Values.email.smtp.requireTls | quote }}
+            {{- with .Values.email.smtp.username }}
+            - name: SMTP_USERNAME
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- with .Values.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "rootcx-portal.secretName" . }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: next-cache
+              mountPath: /app/.next/cache
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: next-cache
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

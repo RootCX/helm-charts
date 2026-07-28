@@ -1,5 +1,5 @@
 {{- $managedHost := dig "hosts" "core" "" .Values.global.rootcx -}}
-{{- $managed := and (eq .Values.global.platform "openshift") $managedHost -}}
+{{- $managed := and (eq (include "rootcx-core.platform" .) "openshift") $managedHost -}}
 {{- if or .Values.route.enabled $managed -}}
 apiVersion: route.openshift.io/v1
 kind: Route

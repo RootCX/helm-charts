@@ -6,6 +6,7 @@ replicaCount: 1
 global:
   platform: kubernetes
   rootcx:
+    deploymentMode: production
     # Set this to the real FQDN that already resolves to your ingress.
     hosts:
       core: ""

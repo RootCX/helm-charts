@@ -1,0 +1,29 @@
+{{- $managedHost := dig "hosts" "portal" "" .Values.global.rootcx -}}
+{{- $managed := and (eq (include "rootcx-portal.platform" .) "openshift") $managedHost -}}
+{{- if or .Values.route.enabled $managed -}}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "rootcx-portal.fullname" . }}
+  labels:
+    {{- include "rootcx-portal.labels" . | nindent 4 }}
+spec:
+  {{- if (include "rootcx-portal.portalHost" .) }}
+  host: {{ include "rootcx-portal.portalHost" . | quote }}
+  {{- end }}
+  to:
+    kind: Service
+    name: {{ include "rootcx-portal.fullname" . }}
+    weight: 100
+  port:
+    targetPort: http
+  {{- with .Values.route.tls }}
+  tls:
+    termination: {{ .termination }}
+    insecureEdgeTerminationPolicy: {{ .insecureEdgeTerminationPolicy }}
+    {{- with (include "rootcx-portal.tlsSecretName" $) }}
+    externalCertificate:
+      name: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,39 @@
+{{- $portalHost := dig "hosts" "portal" "" .Values.global.rootcx -}}
+{{- $coreHost := dig "hosts" "core" "" .Values.global.rootcx -}}
+{{- $tlsSecret := dig "tls" "secretName" "" .Values.global.rootcx -}}
+{{- if eq (include "rootcx-portal.deploymentMode" .) "production" -}}
+{{- if eq .Values.bootstrap.adminEmail "admin@rootcx.localhost" -}}
+{{- fail "bootstrap.adminEmail must be explicitly configured in production" -}}
+{{- end -}}
+{{- if not .Values.email.enabled -}}
+{{- fail "email.enabled must be true in production" -}}
+{{- end -}}
+{{- $_ := required "email.from is required in production" .Values.email.from -}}
+{{- $_ := required "email.smtp.host is required in production" .Values.email.smtp.host -}}
+{{- if not .Values.existingSecret -}}
+{{- $_ := required "auth.secret is required in production unless existingSecret is set" .Values.auth.secret -}}
+{{- $_ := required "oidc.signingKey is required in production unless existingSecret is set" .Values.oidc.signingKey -}}
+{{- $_ := required "global.rootcx.oidcClientSecret is required in production unless existingSecret is set" .Values.global.rootcx.oidcClientSecret -}}
+{{- end -}}
+{{- if not $portalHost -}}
+{{- fail "global.rootcx.hosts.portal is required in production" -}}
+{{- end -}}
+{{- if not $coreHost -}}
+{{- fail "global.rootcx.hosts.core is required in production" -}}
+{{- end -}}
+{{- end -}}
+{{- if and $portalHost (not $coreHost) -}}
+{{- fail "global.rootcx.hosts.core is required when global.rootcx.hosts.portal is set" -}}
+{{- end -}}
+{{- if and $coreHost (not $portalHost) -}}
+{{- fail "global.rootcx.hosts.portal is required when global.rootcx.hosts.core is set" -}}
+{{- end -}}
+{{- if and $portalHost (eq $portalHost $coreHost) -}}
+{{- fail "Portal and Core require different public hosts" -}}
+{{- end -}}
+{{- if and $tlsSecret (not $portalHost) -}}
+{{- fail "both global.rootcx.hosts values are required when global.rootcx.tls.secretName is set" -}}
+{{- end -}}
+{{- if and $tlsSecret (eq .Values.route.tls.termination "passthrough") -}}
+{{- fail "an external TLS certificate cannot be used with passthrough Route termination" -}}
+{{- end -}}
