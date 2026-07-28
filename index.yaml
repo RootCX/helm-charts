@@ -3,6 +3,31 @@ entries:
   rootcx:
   - apiVersion: v2
     appVersion: 1.0.4
+    created: "2026-07-28T14:57:10.494441689Z"
+    description: RootCX Dedicated — Portal, Core, and PostgreSQL
+    digest: 78ab08057ae547457f8066a69d0c0304ac1bc56f408701d726f320ee7569d9d0
+    home: https://rootcx.com
+    icon: https://rootcx.com/icon.png
+    keywords:
+    - ai
+    - portal
+    - dashboard
+    - management
+    kubeVersion: '>=1.28.0-0'
+    maintainers:
+    - email: sandro@rootcx.com
+      name: Sandro Munda
+      url: https://rootcx.com
+    name: rootcx
+    sources:
+    - https://github.com/RootCX/RootCX
+    - https://github.com/RootCX/helm-charts
+    type: application
+    urls:
+    - rootcx-0.6.1.tgz
+    version: 0.6.1
+  - apiVersion: v2
+    appVersion: 1.0.4
     created: "2026-07-28T13:49:02.136070719Z"
     description: RootCX Dedicated — Portal, Core, and PostgreSQL
     digest: f003e66f9974c4b59aa862cca802ac3c1730b1914280bd8cf2ed4ac37d22708c
@@ -56,4 +81,4 @@ entries:
     urls:
     - rootcx-0.5.1.tgz
     version: 0.5.1
-generated: "2026-07-28T13:49:02.136079221Z"
+generated: "2026-07-28T14:57:10.494455274Z"
