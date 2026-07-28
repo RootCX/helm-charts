@@ -1,0 +1,61 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "rootcx-core.fullname" . }}-isolation
+  labels:
+    {{- include "rootcx-core.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "rootcx-core.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    {{- if or (eq .Values.global.platform "openshift") .Values.networkPolicy.ingressNamespaceSelector }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- if eq .Values.global.platform "openshift" }}
+              policy-group.network.openshift.io/ingress: ""
+              {{- else }}
+              {{- toYaml .Values.networkPolicy.ingressNamespaceSelector | nindent 14 }}
+              {{- end }}
+          podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9100
+    {{- end }}
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- if eq .Values.global.platform "openshift" }}
+              kubernetes.io/metadata.name: openshift-dns
+              {{- else }}
+              {{- toYaml .Values.networkPolicy.dnsNamespaceSelector | nindent 14 }}
+              {{- end }}
+      ports:
+        - protocol: UDP
+          port: {{ ternary 5353 .Values.networkPolicy.dnsPort (eq .Values.global.platform "openshift") }}
+        - protocol: TCP
+          port: {{ ternary 5353 .Values.networkPolicy.dnsPort (eq .Values.global.platform "openshift") }}
+    - to:
+        - podSelector: {}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+{{- end }}

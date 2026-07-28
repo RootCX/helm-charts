@@ -1,0 +1,63 @@
+name: Validate Helm charts
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
+      - name: Lint
+        run: helm lint charts/rootcx-core --set-string postgresql.auth.password=validation-only
+      - name: Render Kubernetes
+        run: >-
+          helm template rootcx charts/rootcx-core
+          --set-string postgresql.auth.password=validation-only
+          > /tmp/rootcx-kubernetes.yaml
+      - name: Render OpenShift
+        run: >-
+          helm template rootcx charts/rootcx-core
+          --set-string global.platform=openshift
+          --set-string postgresql.auth.password=validation-only
+          --set route.enabled=true
+          > /tmp/rootcx-openshift.yaml
+      - name: Render managed TLS exposure
+        run: |
+          helm template rootcx charts/rootcx-core \
+            --set-string postgresql.auth.password=validation-only \
+            --set-string global.platform=kubernetes \
+            --set-string global.rootcx.hosts.core=core.rootcx.invalid \
+            --set-string global.rootcx.tls.secretName=rootcx-tls \
+            > /tmp/rootcx-managed-kubernetes.yaml
+          helm template rootcx charts/rootcx-core \
+            --set-string postgresql.auth.password=validation-only \
+            --set-string global.platform=openshift \
+            --set-string global.rootcx.hosts.core=core.rootcx.invalid \
+            --set-string global.rootcx.tls.secretName=rootcx-tls \
+            > /tmp/rootcx-managed-openshift.yaml
+          grep -q 'secretName: rootcx-tls' /tmp/rootcx-managed-kubernetes.yaml
+          grep -q 'externalCertificate:' /tmp/rootcx-managed-openshift.yaml
+          grep -q 'name: "rootcx-tls"' /tmp/rootcx-managed-openshift.yaml
+          test "$(grep -c '^kind: RoleBinding$' /tmp/rootcx-managed-openshift.yaml)" -eq 1
+          if helm template rootcx charts/rootcx-core \
+            --set-string postgresql.auth.password=validation-only \
+            --set-string global.rootcx.tls.secretName=rootcx-tls \
+            >/dev/null 2>&1; then
+            echo "TLS Secret without a real host should be rejected"
+            exit 1
+          fi
+      - name: Ensure no fixed OpenShift identities
+        run: |
+          if grep -Eq 'runAs(User|Group):|fsGroup:' /tmp/rootcx-openshift.yaml; then
+            echo "OpenShift output contains a fixed identity"
+            exit 1
+          fi

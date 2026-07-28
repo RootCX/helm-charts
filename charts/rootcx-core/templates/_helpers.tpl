@@ -5,6 +5,49 @@ Expand the name of the chart.
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
+{{/* OIDC values may be supplied by an umbrella chart through global.rootcx. */}}
+{{- define "rootcx-core.oidcIssuer" -}}
+{{- $portalHost := dig "hosts" "portal" "" .Values.global.rootcx -}}
+{{- if .Values.oidc.issuer -}}
+{{- .Values.oidc.issuer -}}
+{{- else if $portalHost -}}
+{{- printf "https://%s" $portalHost -}}
+{{- else -}}
+{{- .Values.global.rootcx.oidcIssuer -}}
+{{- end -}}
+{{- end }}
+
+{{- define "rootcx-core.oidcClientId" -}}
+{{- default .Values.global.rootcx.oidcClientId .Values.oidc.clientId -}}
+{{- end }}
+
+{{- define "rootcx-core.oidcClientSecret" -}}
+{{- default .Values.global.rootcx.oidcClientSecret .Values.oidc.clientSecret -}}
+{{- end }}
+
+{{- define "rootcx-core.publicUrl" -}}
+{{- $coreHost := dig "hosts" "core" "" .Values.global.rootcx -}}
+{{- if .Values.publicUrl -}}
+{{- .Values.publicUrl -}}
+{{- else if $coreHost -}}
+{{- printf "https://%s" $coreHost -}}
+{{- else -}}
+{{- .Values.global.rootcx.corePublicUrl -}}
+{{- end -}}
+{{- end }}
+
+{{- define "rootcx-core.routeHost" -}}
+{{- default .Values.route.host (dig "hosts" "core" "" .Values.global.rootcx) -}}
+{{- end }}
+
+{{- define "rootcx-core.tlsSecretName" -}}
+{{- default (dig "tls" "secretName" "" .Values.global.rootcx) .Values.route.tls.externalCertificateSecretName -}}
+{{- end }}
+
+{{- define "rootcx-core.secretName" -}}
+{{- default (include "rootcx-core.fullname" .) .Values.existingSecret -}}
+{{- end }}
+
 {{/*
 Create a default fully qualified app name.
 */}}

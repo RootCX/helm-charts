@@ -9,6 +9,8 @@ metadata:
 spec:
   serviceName: {{ include "rootcx-core.postgresql.fullname" . }}
   replicas: 1
+  persistentVolumeClaimRetentionPolicy:
+    {{- toYaml .Values.postgresql.persistence.retentionPolicy | nindent 4 }}
   selector:
     matchLabels:
       {{- include "rootcx-core.selectorLabels" . | nindent 6 }}
@@ -25,43 +27,44 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "rootcx-core.serviceAccountName" . }}
       automountServiceAccountToken: false
-      initContainers:
-        - name: init-pgdata
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.postgresql.terminationGracePeriodSeconds }}
+      {{- with .Values.postgresql.podSecurityContext }}
+      securityContext:
+        {{- if eq $.Values.global.platform "openshift" }}
+        {{- omit . "fsGroup" "fsGroupChangePolicy" | toYaml | nindent 8 }}
+        {{- else }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: postgresql
           image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
           imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
-          command: ["/bin/bash", "/scripts/pg-init.sh"]
+          command: ["/pg-entrypoint.sh"]
+          {{- with .Values.postgresql.securityContext }}
           securityContext:
-            runAsUser: 0
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           env:
+            - name: PGDATA
+              value: /data/pgdata
             - name: POSTGRES_USER
               value: {{ .Values.postgresql.auth.username | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rootcx-core.fullname" . }}
+                  name: {{ include "rootcx-core.secretName" . }}
                   key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
               value: {{ .Values.postgresql.auth.database | quote }}
-            - name: PGDATA
-              value: /data/pgdata
-          volumeMounts:
-            - name: pgdata
-              mountPath: /data
-            - name: scripts
-              mountPath: /scripts
-              readOnly: true
-      containers:
-        - name: postgresql
-          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
-          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
-          command: ["/bin/bash", "/scripts/pg-run.sh"]
-          securityContext:
-            runAsUser: 26
-            runAsGroup: 102
-            allowPrivilegeEscalation: false
-          env:
-            - name: PGDATA
-              value: /data/pgdata
+            {{- range .Values.postgresql.extraDatabases }}
+            {{- if not (regexMatch "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$" .) }}
+            {{- fail (printf "invalid postgresql.extraDatabases entry: %s" .) }}
+            {{- end }}
+            {{- end }}
+            - name: POSTGRES_EXTRA_DATABASES
+              value: {{ join "," .Values.postgresql.extraDatabases | quote }}
           ports:
             - name: postgresql
               containerPort: 5432
@@ -70,6 +73,8 @@ spec:
             exec:
               command:
                 - pg_isready
+                - -h
+                - 127.0.0.1
                 - -U
                 - {{ .Values.postgresql.auth.username | quote }}
                 - -d
@@ -81,6 +86,8 @@ spec:
             exec:
               command:
                 - pg_isready
+                - -h
+                - 127.0.0.1
                 - -U
                 - {{ .Values.postgresql.auth.username | quote }}
                 - -d
@@ -95,15 +102,12 @@ spec:
           volumeMounts:
             - name: pgdata
               mountPath: /data
-            - name: scripts
-              mountPath: /scripts
-              readOnly: true
-  {{- if .Values.postgresql.persistence.enabled }}
+            - name: tmp
+              mountPath: /tmp
+  {{- if and .Values.postgresql.persistence.enabled (not .Values.postgresql.persistence.existingClaim) }}
       volumes:
-        - name: scripts
-          configMap:
-            name: {{ include "rootcx-core.postgresql.fullname" . }}-scripts
-            defaultMode: 0755
+        - name: tmp
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: pgdata
@@ -116,13 +120,18 @@ spec:
         resources:
           requests:
             storage: {{ .Values.postgresql.persistence.size }}
+  {{- else if .Values.postgresql.persistence.existingClaim }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: {{ .Values.postgresql.persistence.existingClaim }}
   {{- else }}
       volumes:
+        - name: tmp
+          emptyDir: {}
         - name: pgdata
           emptyDir: {}
-        - name: scripts
-          configMap:
-            name: {{ include "rootcx-core.postgresql.fullname" . }}-scripts
-            defaultMode: 0755
   {{- end }}
 {{- end }}

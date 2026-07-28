@@ -2,8 +2,38 @@
 # All configuration is done via environment variables.
 # This file documents every configurable parameter.
 
+global:
+  # -- Target platform: kubernetes or openshift
+  platform: kubernetes
+  rootcx:
+    corePublicUrl: ""
+    oidcIssuer: ""
+    oidcClientId: ""
+    oidcClientSecret: ""
+    # Canonical externally reachable hosts. Leave empty to keep using the
+    # legacy ingress/route and publicUrl values below.
+    hosts:
+      portal: ""
+      core: ""
+    # Optional kubernetes.io/tls Secret in the release namespace. On
+    # OpenShift 4.19+ it is referenced by Route.spec.tls.externalCertificate;
+    # on Kubernetes it is referenced by Ingress.spec.tls.secretName.
+    tls:
+      secretName: ""
+      openshift:
+        # Grant the OpenShift router read-only access to this one Secret, as
+        # required by Route externalCertificate SubjectAccessReview.
+        createRouterRBAC: true
+        routerServiceAccount:
+          namespace: openshift-ingress
+          name: router
+
 # -- Number of Core replicas (1 for single-instance deployments)
 replicaCount: 1
+
+# -- Recreate avoids RWO volume multi-attach failures during upgrades.
+strategy:
+  type: Recreate
 
 # -- Core container image
 image:
@@ -14,6 +44,10 @@ image:
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+
+# -- Existing Secret containing DATABASE_URL and optional ROOTCX_JWT_SECRET,
+# ROOTCX_MASTER_KEY, ROOTCX_OIDC_CLIENT_SECRET, and POSTGRES_PASSWORD.
+existingSecret: ""
 
 # -- Service account
 serviceAccount:
@@ -29,11 +63,16 @@ podAnnotations: {}
 # On vanilla Kubernetes the image's USER directive (UID 1000) takes effect.
 podSecurityContext:
   runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+  # Used on Kubernetes. Omitted automatically when global.platform=openshift.
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
 
 # -- Container security context
 securityContext:
-  runAsUser: 1000
   allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
   capabilities:
     drop:
       - ALL
@@ -61,6 +100,17 @@ disablePasswordLogin: "false"
 
 # -- Log level (trace, debug, info, warn, error)
 logLevel: "info"
+
+# =============================================================================
+# AI GATEWAY
+# =============================================================================
+
+ai:
+  openai:
+    # -- Optional base URL for an OpenAI Chat Completions-compatible endpoint.
+    # Include the API prefix expected by the gateway, commonly /v1. When empty,
+    # OpenAI agents use the provider's default public endpoint.
+    baseUrl: ""
 
 # =============================================================================
 # SSO / OIDC CONFIGURATION
@@ -107,6 +157,12 @@ route:
   tls:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
+    # Optional per-Route override. Prefer global.rootcx.tls.secretName when
+    # Core is installed as part of the RootCX dedicated chart.
+    externalCertificateSecretName: ""
+    # Internal composition override. Keep true for standalone Core installs;
+    # the RootCX umbrella chart creates the shared router RBAC once.
+    createRouterRBAC: true
 
 # =============================================================================
 # PERSISTENCE (Core data volume at /data)
@@ -114,6 +170,8 @@ route:
 
 persistence:
   enabled: true
+  # -- Retain the Core data PVC when the Helm release is uninstalled.
+  keep: true
   storageClass: ""
   accessMode: ReadWriteOnce
   size: 5Gi
@@ -151,6 +209,14 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
 
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 24
+
 # =============================================================================
 # POSTGRESQL (embedded in chart)
 # =============================================================================
@@ -159,9 +225,12 @@ postgresql:
   # -- Deploy PostgreSQL as part of this chart (with PGMQ + pg_cron)
   enabled: true
 
+  # -- Time allowed for the pre-stop fast checkpoint and clean shutdown.
+  terminationGracePeriodSeconds: 60
+
   image:
     repository: ghcr.io/rootcx/postgresql
-    tag: "16-pgmq-cron"
+    tag: "16-pgmq1.5.0-rootcx1"
     pullPolicy: IfNotPresent
 
   auth:
@@ -169,12 +238,33 @@ postgresql:
     password: ""  # REQUIRED if postgresql.enabled=true
     database: rootcx
 
+  # -- Additional databases created in the same PostgreSQL server on first initialization
+  extraDatabases: []
+
   persistence:
     enabled: true
     storageClass: ""
     accessMode: ReadWriteOnce
     size: 10Gi
     existingClaim: ""
+    retentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
+
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+    # Used on Kubernetes. Omitted automatically when global.platform=openshift.
+    fsGroup: 26
+    fsGroupChangePolicy: OnRootMismatch
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
 
   resources:
     requests:
@@ -183,6 +273,34 @@ postgresql:
     limits:
       memory: "1Gi"
       cpu: "500m"
+
+# =============================================================================
+# TRUSTED CA (for self-signed ingress certificates)
+# =============================================================================
+
+# -- Name of a ConfigMap containing a ca-bundle.crt key to trust
+# The chart mounts this at /etc/pki/tls/certs and sets SSL_CERT_FILE.
+# On OpenShift with self-signed router certs, create a ConfigMap from
+# the ingress-operator CA and reference it here.
+trustedCA: ""
+
+# =============================================================================
+# NETWORK POLICY
+# =============================================================================
+
+networkPolicy:
+  # -- Create a NetworkPolicy for tenant isolation
+  enabled: false
+  # -- DNS port (53 for vanilla k8s, 5353 for OpenShift)
+  dnsPort: 53
+  # -- Namespace label selector for DNS namespace
+  dnsNamespaceSelector:
+    kubernetes.io/metadata.name: kube-system
+  # -- Namespace label selector for ingress controller namespace
+  ingressNamespaceSelector: {}
+  # -- Additional egress rules. Required when the AI Gateway or another
+  # dependency uses a private cluster address or RFC1918 network.
+  extraEgress: []
 
 # =============================================================================
 # EXTRA ENVIRONMENT VARIABLES

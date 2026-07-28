@@ -1,0 +1,30 @@
+name: Release Helm chart
+
+on:
+  push:
+    tags: ["rootcx-core-chart-v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
+      - name: Verify tag matches Chart.yaml
+        run: |
+          expected="rootcx-core-chart-v$(helm show chart charts/rootcx-core | awk '/^version:/{print $2}')"
+          test "$GITHUB_REF_NAME" = "$expected"
+      - name: Lint and package
+        run: |
+          helm lint charts/rootcx-core --set-string postgresql.auth.password=validation-only
+          helm package charts/rootcx-core --destination dist
+      - name: Authenticate to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
+      - name: Publish immutable OCI chart
+        run: helm push dist/rootcx-core-*.tgz oci://ghcr.io/rootcx/charts

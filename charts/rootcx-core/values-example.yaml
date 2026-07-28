@@ -3,25 +3,26 @@
 
 replicaCount: 1
 
-publicUrl: https://rootcx.example.com
+global:
+  platform: kubernetes
+  rootcx:
+    # Set this to the real FQDN that already resolves to your ingress.
+    hosts:
+      core: ""
+    # Optional. Leave empty only when the platform default certificate is
+    # trusted and covers the configured host.
+    tls:
+      secretName: ""
 
 # Expose via Kubernetes Ingress OR OpenShift Route (pick one)
 ingress:
-  enabled: true
+  enabled: false
   className: nginx
-  hosts:
-    - host: rootcx.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - hosts:
-        - rootcx.example.com
-      secretName: rootcx-tls
+  hosts: []
+  tls: []
 
-# route:
-#   enabled: true
-#   host: rootcx.example.com
+# For OpenShift, set global.platform=openshift. The chart creates the Route
+# from global.rootcx.hosts.core automatically.
 
 # SSO via OIDC (Keycloak, Azure AD, Okta, etc.)
 oidc:
@@ -30,6 +31,17 @@ oidc:
   clientSecret: CHANGE_ME
 
 disablePasswordLogin: "true"
+
+# Optional: the real OpenAI Chat Completions-compatible AI Gateway endpoint.
+# Do not copy a guessed hostname; obtain the exact URL from the platform team.
+ai:
+  openai:
+    baseUrl: ""
+
+# Stable application secrets. Generate them once and retain them across every
+# upgrade. masterKey encrypts the application secret vault.
+jwtSecret: CHANGE_ME_TO_AT_LEAST_32_RANDOM_CHARACTERS
+masterKey: CHANGE_ME_TO_EXACTLY_64_HEXADECIMAL_CHARACTERS
 
 # Embedded PostgreSQL (with PGMQ + pg_cron)
 postgresql:
@@ -55,3 +67,10 @@ resources:
   limits:
     memory: "2Gi"
     cpu: "2000m"
+
+# If the AI Gateway resolves to a private address, add the exact namespace,
+# pod selector, or CIDR supplied by the platform team. Public HTTPS egress is
+# already allowed; RFC1918 egress is denied unless explicitly added here.
+networkPolicy:
+  enabled: true
+  extraEgress: []

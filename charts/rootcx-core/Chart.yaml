@@ -2,8 +2,9 @@ apiVersion: v2
 name: rootcx-core
 description: RootCX Core — AI application runtime with governance, permissions, audit, and SSO
 type: application
-version: 0.1.0
-appVersion: "0.20.1"
+version: 0.4.0
+appVersion: "0.21.1"
+kubeVersion: ">=1.28.0-0"
 
 keywords:
   - ai
@@ -18,7 +19,7 @@ maintainers:
     url: https://rootcx.com
 
 sources:
-  - https://github.com/rootcx/rootcx
+  - https://github.com/RootCX/RootCX
 
 home: https://rootcx.com
 

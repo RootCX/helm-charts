@@ -6,10 +6,27 @@ metadata:
     {{- include "rootcx-core.labels" . | nindent 4 }}
   annotations:
     "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
   containers:
-    - name: wget
-      image: busybox
-      command: ['wget']
-      args: ['--spider', '--timeout=5', '{{ include "rootcx-core.fullname" . }}:{{ .Values.service.port }}/health']
+    - name: core
+      image: curlimages/curl:8.17.0
+      args:
+        - --fail
+        - --silent
+        - --show-error
+        - http://{{ include "rootcx-core.fullname" . }}:{{ .Values.service.port }}/health
+      securityContext:
+        allowPrivilegeEscalation: false
+        {{- if ne .Values.global.platform "openshift" }}
+        runAsUser: 100
+        runAsGroup: 101
+        {{- end }}
+        capabilities:
+          drop: ["ALL"]
   restartPolicy: Never

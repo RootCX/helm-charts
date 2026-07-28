@@ -1,4 +1,6 @@
-{{- if .Values.route.enabled -}}
+{{- $managedHost := dig "hosts" "core" "" .Values.global.rootcx -}}
+{{- $managed := and (eq .Values.global.platform "openshift") $managedHost -}}
+{{- if or .Values.route.enabled $managed -}}
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
@@ -6,8 +8,8 @@ metadata:
   labels:
     {{- include "rootcx-core.labels" . | nindent 4 }}
 spec:
-  {{- if .Values.route.host }}
-  host: {{ .Values.route.host | quote }}
+  {{- if (include "rootcx-core.routeHost" .) }}
+  host: {{ include "rootcx-core.routeHost" . | quote }}
   {{- end }}
   to:
     kind: Service
@@ -19,5 +21,9 @@ spec:
   tls:
     termination: {{ .termination }}
     insecureEdgeTerminationPolicy: {{ .insecureEdgeTerminationPolicy }}
+    {{- with (include "rootcx-core.tlsSecretName" $) }}
+    externalCertificate:
+      name: {{ . | quote }}
+    {{- end }}
   {{- end }}
 {{- end }}

@@ -1,0 +1,9 @@
+{{- $managedHost := dig "hosts" "core" "" .Values.global.rootcx -}}
+{{- $tlsSecret := include "rootcx-core.tlsSecretName" . -}}
+{{- $routeHost := default .Values.route.host $managedHost -}}
+{{- if and $tlsSecret (not $routeHost) -}}
+{{- fail "global.rootcx.hosts.core or route.host is required when an external TLS Secret is set" -}}
+{{- end -}}
+{{- if and (include "rootcx-core.tlsSecretName" .) (eq .Values.route.tls.termination "passthrough") -}}
+{{- fail "an external TLS certificate cannot be used with passthrough Route termination" -}}
+{{- end -}}
