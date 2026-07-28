@@ -6,10 +6,11 @@ global:
   rootcx:
     # -- quickstart generates local secrets; production requires explicit values.
     deploymentMode: quickstart
-    # Public URLs visible from users' browsers.
-    portalPublicUrl: "http://localhost:3000"
-    corePublicUrl: "http://localhost:9100"
-    oidcIssuer: "http://localhost:3000"
+    # Legacy explicit URL overrides. The supported chart flow derives HTTPS
+    # URLs from hosts below; hostnames are required in every deployment mode.
+    portalPublicUrl: ""
+    corePublicUrl: ""
+    oidcIssuer: ""
     oidcClientId: "rootcx-dedicated"
     # Required. Supply through a protected values file or --set-string.
     oidcClientSecret: ""
@@ -328,6 +329,8 @@ core:
       limits:
         memory: "1Gi"
         cpu: "500m"
+  # trustedCA names a ConfigMap containing an additional ca-bundle.crt. The
+  # chart merges it with the image's public CA bundle before starting Core.
   trustedCA: ""
   networkPolicy:
     enabled: true
@@ -341,3 +344,8 @@ core:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
+tests:
+  oidc:
+    # Disable only in chart CI environments that have no Ingress/Route controller.
+    enabled: true

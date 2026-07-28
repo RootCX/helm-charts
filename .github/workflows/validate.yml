@@ -16,10 +16,17 @@ jobs:
       - uses: azure/setup-helm@v4
         with:
           version: v3.19.0
-      - name: Lint zero-configuration quickstart
-        run: helm lint charts/rootcx
+      - name: Lint OpenShift Local profile
+        run: helm lint charts/rootcx --values examples/values-openshift-local.yaml
       - name: Render Kubernetes quickstart
-        run: helm template rootcx charts/rootcx > /tmp/rootcx-quickstart.yaml
+        run: |
+          helm template rootcx charts/rootcx \
+            --set-string global.platform=kubernetes \
+            --set-string global.rootcx.hosts.portal=portal.rootcx.invalid \
+            --set-string global.rootcx.hosts.core=core.rootcx.invalid \
+            --set-string global.rootcx.tls.secretName=rootcx-tls \
+            --set tests.oidc.enabled=false \
+            > /tmp/rootcx-quickstart.yaml
       - name: Validate generated quickstart configuration
         run: |
           grep -Eq 'ROOTCX_MASTER_KEY: "[0-9a-f]{64}"' /tmp/rootcx-quickstart.yaml
@@ -32,6 +39,7 @@ jobs:
       - name: Render auto-detected OpenShift quickstart
         run: >-
           helm template rootcx charts/rootcx
+          --values examples/values-openshift-local.yaml
           --api-versions route.openshift.io/v1/Route
           > /tmp/rootcx-openshift.yaml
       - name: Ensure OpenShift output uses arbitrary UIDs
@@ -51,6 +59,7 @@ jobs:
             --set-string global.rootcx.deploymentMode=production \
             --set-string global.rootcx.hosts.portal=portal.rootcx.invalid \
             --set-string global.rootcx.hosts.core=core.rootcx.invalid \
+            --set-string global.rootcx.tls.secretName=rootcx-tls \
             --set-string global.rootcx.oidcClientSecret=validation-only \
             --set-string bootstrap.adminEmail=admin@rootcx.invalid \
             --set-string auth.secret=0123456789abcdef0123456789abcdef \
@@ -66,12 +75,14 @@ jobs:
       - name: Validate explicitly enabled SMTP
         run: |
           helm template rootcx charts/rootcx \
+            --values examples/values-openshift-local.yaml \
             --set email.enabled=true \
             --set-string email.from=rootcx@rootcx.invalid \
             --set-string email.smtp.host=smtp.rootcx.invalid \
             > /tmp/rootcx-smtp.yaml
           grep -q 'name: SMTP_HOST' /tmp/rootcx-smtp.yaml
           if helm template rootcx charts/rootcx \
+            --values examples/values-openshift-local.yaml \
             --set email.enabled=true \
             >/dev/null 2>&1; then
             echo "Enabled SMTP must require a sender and relay"
@@ -95,13 +106,18 @@ jobs:
         with:
           version: v3.19.0
       - uses: helm/kind-action@v1
-      - name: Install the zero-configuration quickstart
+      - name: Install the HTTPS-configured quickstart
         run: |
           helm install rootcx charts/rootcx \
             --namespace rootcx \
             --create-namespace \
+            --set-string global.platform=kubernetes \
+            --set-string global.rootcx.hosts.portal=portal.rootcx.invalid \
+            --set-string global.rootcx.hosts.core=core.rootcx.invalid \
+            --set-string global.rootcx.tls.secretName=rootcx-tls \
             --set core.persistence.enabled=false \
             --set core.postgresql.persistence.enabled=false \
+            --set tests.oidc.enabled=false \
             --wait \
             --timeout 10m
           helm test rootcx --namespace rootcx --timeout 5m
@@ -111,8 +127,13 @@ jobs:
           kubectl get secret rootcx-core -n rootcx -o jsonpath='{.data.ROOTCX_MASTER_KEY}' > /tmp/core-secret.before
           helm upgrade rootcx charts/rootcx \
             --namespace rootcx \
+            --set-string global.platform=kubernetes \
+            --set-string global.rootcx.hosts.portal=portal.rootcx.invalid \
+            --set-string global.rootcx.hosts.core=core.rootcx.invalid \
+            --set-string global.rootcx.tls.secretName=rootcx-tls \
             --set core.persistence.enabled=false \
             --set core.postgresql.persistence.enabled=false \
+            --set tests.oidc.enabled=false \
             --wait \
             --timeout 10m
           kubectl get secret rootcx -n rootcx -o jsonpath='{.data.AUTH_SECRET}' > /tmp/portal-secret.after

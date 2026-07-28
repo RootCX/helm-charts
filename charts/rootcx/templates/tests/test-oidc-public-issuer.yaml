@@ -1,0 +1,39 @@
+{{- if .Values.tests.oidc.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "rootcx-core.fullname" . }}-test-oidc"
+  labels:
+    {{- include "rootcx-core.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: oidc
+      image: curlimages/curl:8.17.0
+      command: ["sh", "-ec"]
+      args:
+        - |
+          status="$(curl --silent --show-error --output /tmp/response --write-out '%{http_code}' \
+            --request POST \
+            --header 'content-type: application/json' \
+            --data '{"providerId":"rootcx","idToken":"invalid"}' \
+            http://{{ include "rootcx-core.fullname" . }}:{{ .Values.core.service.port }}/api/v1/auth/oidc/token-exchange)"
+          cat /tmp/response
+          test "$status" = "401"
+      securityContext:
+        allowPrivilegeEscalation: false
+        {{- if ne (include "rootcx-core.platform" .) "openshift" }}
+        runAsUser: 100
+        runAsGroup: 101
+        {{- end }}
+        capabilities:
+          drop: ["ALL"]
+  restartPolicy: Never
+{{- end }}

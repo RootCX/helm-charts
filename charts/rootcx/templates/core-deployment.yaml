@@ -77,7 +77,7 @@ spec:
             {{- end }}
             {{- if .Values.core.trustedCA }}
             - name: SSL_CERT_FILE
-              value: /etc/pki/tls/certs/ca-bundle.crt
+              value: /etc/rootcx/tls/ca-bundle.crt
             {{- end }}
             {{- with .Values.core.extraEnvVars }}
             {{- toYaml . | nindent 12 }}
@@ -112,9 +112,29 @@ spec:
               mountPath: /tmp
             {{- if .Values.core.trustedCA }}
             - name: trusted-ca
-              mountPath: /etc/pki/tls/certs
+              mountPath: /etc/rootcx/tls
               readOnly: true
             {{- end }}
+      {{- if .Values.core.trustedCA }}
+      initContainers:
+        - name: merge-trusted-ca
+          image: "{{ .Values.core.image.repository }}:{{ .Values.core.image.tag }}"
+          imagePullPolicy: {{ .Values.core.image.pullPolicy }}
+          command: ["sh", "-ec"]
+          args:
+            - cat /etc/ssl/certs/ca-certificates.crt /custom-ca/ca-bundle.crt > /merged-ca/ca-bundle.crt
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: custom-ca
+              mountPath: /custom-ca
+              readOnly: true
+            - name: trusted-ca
+              mountPath: /merged-ca
+      {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
@@ -126,12 +146,14 @@ spec:
           emptyDir: {}
           {{- end }}
         {{- if .Values.core.trustedCA }}
-        - name: trusted-ca
+        - name: custom-ca
           configMap:
             name: {{ .Values.core.trustedCA }}
             items:
               - key: ca-bundle.crt
                 path: ca-bundle.crt
+        - name: trusted-ca
+          emptyDir: {}
         {{- end }}
       {{- with .Values.core.nodeSelector }}
       nodeSelector:

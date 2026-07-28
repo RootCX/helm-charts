@@ -1,6 +1,15 @@
 {{- $portalHost := dig "hosts" "portal" "" .Values.global.rootcx -}}
 {{- $coreHost := dig "hosts" "core" "" .Values.global.rootcx -}}
 {{- $tlsSecret := dig "tls" "secretName" "" .Values.global.rootcx -}}
+{{- if not $portalHost -}}
+{{- fail "global.rootcx.hosts.portal is required; RootCX supports HTTPS endpoints only" -}}
+{{- end -}}
+{{- if not $coreHost -}}
+{{- fail "global.rootcx.hosts.core is required; RootCX supports HTTPS endpoints only" -}}
+{{- end -}}
+{{- if and (eq (include "rootcx-portal.platform" .) "kubernetes") (not $tlsSecret) -}}
+{{- fail "global.rootcx.tls.secretName is required on Kubernetes; OpenShift may use its default router certificate" -}}
+{{- end -}}
 {{- if eq (include "rootcx-portal.deploymentMode" .) "production" -}}
 {{- if eq .Values.bootstrap.adminEmail "admin@rootcx.localhost" -}}
 {{- fail "bootstrap.adminEmail must be explicitly configured in production" -}}
@@ -9,12 +18,6 @@
 {{- $_ := required "auth.secret is required in production unless existingSecret is set" .Values.auth.secret -}}
 {{- $_ := required "oidc.signingKey is required in production unless existingSecret is set" .Values.oidc.signingKey -}}
 {{- $_ := required "global.rootcx.oidcClientSecret is required in production unless existingSecret is set" .Values.global.rootcx.oidcClientSecret -}}
-{{- end -}}
-{{- if not $portalHost -}}
-{{- fail "global.rootcx.hosts.portal is required in production" -}}
-{{- end -}}
-{{- if not $coreHost -}}
-{{- fail "global.rootcx.hosts.core is required in production" -}}
 {{- end -}}
 {{- end -}}
 {{- if and $portalHost (not $coreHost) -}}

@@ -45,6 +45,17 @@ spec:
           port: {{ ternary 5353 .Values.core.networkPolicy.dnsPort (eq (include "rootcx-core.platform" .) "openshift") }}
     - to:
         - podSelector: {}
+    {{- if eq (include "rootcx-core.platform" .) "openshift" }}
+    # Core validates OIDC through the public issuer Route. Allow HTTPS to the
+    # platform ingress router while keeping other cross-namespace traffic denied.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              policy-group.network.openshift.io/ingress: ""
+      ports:
+        - protocol: TCP
+          port: 443
+    {{- end }}
     {{- with .Values.core.networkPolicy.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
