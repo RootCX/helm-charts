@@ -31,6 +31,9 @@ jobs:
           helm dependency build charts/rootcx
           helm lint charts/rootcx-core
           helm lint charts/rootcx
+          mkdir -p dist
+          helm package charts/rootcx-core --destination dist
+          helm package charts/rootcx --destination dist
       - name: Verify referenced public images exist
         run: |
           helm template rootcx charts/rootcx \
@@ -51,7 +54,7 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
       - name: Publish immutable OCI charts
         run: |
-          for chart in .cr-release-packages/*.tgz; do
+          for chart in dist/*.tgz; do
             [ -e "$chart" ] || continue
-            helm push "$chart" oci://ghcr.io/rootcx/charts
+            helm push "$chart" oci://ghcr.io/rootcx/helm-charts
           done

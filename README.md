@@ -95,4 +95,4 @@ helm template rootcx charts/rootcx
 
 Chart releases are immutable and published both as GitHub release assets for
 the HTTP Helm repository and as OCI artifacts under
-`oci://ghcr.io/rootcx/charts`.
+`oci://ghcr.io/rootcx/helm-charts`.
