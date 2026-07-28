@@ -45,15 +45,18 @@ helm repo update
 This is the shortest fully tested local path. OpenShift Local provides:
 
 - the local applications domain `*.apps-crc.testing`;
-- an HTTPS router;
-- a locally issued wildcard certificate.
+- an HTTPS router.
+
+[`mkcert`](https://github.com/FiloSottile/mkcert) creates a development CA,
+installs it in the workstation trust stores and generates the certificate used
+by the OpenShift Routes. This gives macOS, Windows and Linux the same setup.
 
 It is intentionally not `https://localhost`: Portal and Core need two stable
 hostnames that are reachable from both the browser and the cluster. The local
 hostnames are:
 
-- Portal: `https://rootcx.apps-crc.testing`
-- Core: `https://rootcx-core.apps-crc.testing`
+- Portal: `https://portal.rootcx.apps-crc.testing`
+- Core: `https://api.rootcx.apps-crc.testing`
 
 ### 1. Select the local cluster
 
@@ -80,18 +83,65 @@ kubectl create namespace rootcx
 Deleting the namespace deletes every resource in it. Persistent volumes may
 remain when their reclaim policy is `Retain`.
 
-### 3. Create `values.yaml`
+### 3. Create and trust the local certificate
+
+Install `mkcert` using the package manager for the workstation:
+
+| Platform | Command |
+| --- | --- |
+| macOS | `brew install mkcert` |
+| Windows with Chocolatey | `choco install mkcert` |
+| Windows with Scoop | `scoop bucket add extras && scoop install mkcert` |
+| Linux | Follow the distribution-specific installation in the [mkcert documentation](https://github.com/FiloSottile/mkcert#installation) and install its NSS tools package when required |
+
+Create the local CA and certificate. `mkcert -install` may request administrator
+approval because it updates the workstation trust stores:
+
+```bash
+mkcert -install
+mkcert -cert-file rootcx-local.crt -key-file rootcx-local.key portal.rootcx.apps-crc.testing api.rootcx.apps-crc.testing
+```
+
+Create the TLS Secret used by both OpenShift Routes:
+
+```bash
+kubectl create secret tls rootcx-local-tls --namespace rootcx --cert=rootcx-local.crt --key=rootcx-local.key
+```
+
+Core also needs the public development CA. On macOS, Linux, WSL or Git Bash:
+
+```bash
+kubectl create configmap rootcx-local-ca \
+  --namespace rootcx \
+  --from-file=ca-bundle.crt="$(mkcert -CAROOT)/rootCA.pem"
+```
+
+In native Windows PowerShell:
+
+```powershell
+$mkcertCaRoot = mkcert -CAROOT
+kubectl create configmap rootcx-local-ca `
+  --namespace rootcx `
+  "--from-file=ca-bundle.crt=$mkcertCaRoot/rootCA.pem"
+```
+
+Only the public CA certificate enters the ConfigMap. The CA private key remains
+on the workstation and must never be copied, committed or shared.
+
+### 4. Create `values.yaml`
 
 ```yaml
 global:
   platform: openshift
   rootcx:
     hosts:
-      portal: rootcx.apps-crc.testing
-      core: rootcx-core.apps-crc.testing
+      portal: portal.rootcx.apps-crc.testing
+      core: api.rootcx.apps-crc.testing
+    tls:
+      secretName: rootcx-local-tls
 
 core:
-  trustedCA: rootcx-ingress-ca
+  trustedCA: rootcx-local-ca
   networkPolicy:
     enabled: false
 ```
@@ -100,23 +150,6 @@ The Core NetworkPolicy is disabled only in this local profile. CRC resolves its
 application routes to a private VM address, and standard Kubernetes
 NetworkPolicy has no portable FQDN rule. Production keeps isolation enabled and
 uses explicit network rules.
-
-### 4. Let Core trust the local router
-
-Copy only the public certificate chain from OpenShift into the RootCX
-namespace:
-
-```bash
-kubectl get configmap default-ingress-cert \
-  --namespace openshift-config-managed \
-  --output go-template='{{ index .data "ca-bundle.crt" }}' |
-kubectl create configmap rootcx-ingress-ca \
-  --namespace rootcx \
-  --from-file=ca-bundle.crt=/dev/stdin
-```
-
-No private key is copied. RootCX merges this local CA chain with the public CA
-roots already present in the Core image.
 
 ### 5. Install and test
 
@@ -137,86 +170,28 @@ All Helm tests must report `Succeeded`, including `rootcx-core-test-oidc`.
 Open:
 
 ```text
-https://rootcx.apps-crc.testing
+https://portal.rootcx.apps-crc.testing
 ```
 
 Register with `admin@rootcx.localhost` to initialize the workspace. After
 initialization, additional users must be invited from **Team**.
 
-### 6. Make Chrome trust the local HTTPS certificate on macOS
+If Chrome was open during `mkcert -install`, quit it completely and reopen it.
+The Portal should load without a certificate warning. Firefox may require its
+NSS support package, as documented by mkcert.
 
-The red HTTPS warning is expected until macOS trusts the OpenShift Local root
-CA. Export the chain and select its self-signed root:
-
-```bash
-kubectl get configmap default-ingress-cert \
-  --namespace openshift-config-managed \
-  --output go-template='{{ index .data "ca-bundle.crt" }}' \
-  > crc-ingress-chain.pem
-
-awk '
-  /-----BEGIN CERTIFICATE-----/ { certificate++ }
-  { print > ("crc-certificate-" certificate ".pem") }
-' crc-ingress-chain.pem
-
-rm -f crc-ingress-root-ca.pem
-
-for certificate in crc-certificate-*.pem; do
-  subject="$(openssl x509 -in "$certificate" -noout -subject -nameopt RFC2253 2>/dev/null)" ||
-    continue
-  issuer="$(openssl x509 -in "$certificate" -noout -issuer -nameopt RFC2253 2>/dev/null)" ||
-    continue
-  if [ "${subject#subject=}" = "${issuer#issuer=}" ]; then
-    cp "$certificate" crc-ingress-root-ca.pem
-    break
-  fi
-done
-
-test -s crc-ingress-root-ca.pem
-```
-
-Inspect the certificate before trusting it:
-
-```bash
-openssl x509 \
-  -in crc-ingress-root-ca.pem \
-  -noout \
-  -subject \
-  -issuer \
-  -fingerprint \
-  -sha256
-```
-
-Then add that root to the macOS System keychain:
-
-```bash
-sudo security add-trusted-cert \
-  -d \
-  -r trustRoot \
-  -k /Library/Keychains/System.keychain \
-  crc-ingress-root-ca.pem
-```
-
-Quit Chrome completely with `⌘Q`, reopen it, then revisit
-`https://rootcx.apps-crc.testing`. Chrome on macOS uses the system trust store,
-so the warning should be gone.
-
-Only trust a certificate extracted from your own local cluster. If OpenShift
-Local regenerates its ingress certificates, repeat this step for the new root.
-
-To remove this local trust later:
-
-```bash
-sudo security delete-certificate \
-  -Z "$(openssl x509 -in crc-ingress-root-ca.pem -noout -fingerprint -sha1 |
-    cut -d= -f2 | tr -d ':')" \
-  /Library/Keychains/System.keychain
-```
+This certificate is for local development only. Remove the development CA with
+`mkcert -uninstall` when it is no longer needed.
 
 ## Production
 
 Production mode requires explicit secrets and infrastructure choices. It does
 not silently generate production credentials.
+
+The production certificate must be trusted by every browser and workload that
+accesses RootCX. Use a publicly trusted CA for Internet-facing deployments or
+the organization's managed enterprise CA for private deployments. Standalone
+self-signed certificates are not recommended in production.
 
 Before installing, decide:
 
@@ -547,7 +522,7 @@ Common causes:
 
 | Symptom | Check |
 | --- | --- |
-| Browser shows a red HTTPS warning locally | Trust the CRC root CA, quit Chrome with `⌘Q`, then reopen it |
+| Browser shows a red HTTPS warning locally | Run `mkcert -install`, then quit and reopen the browser |
 | `rootcx-core-test-oidc` fails | Core must resolve and reach the exact public Portal issuer over HTTPS |
 | Certificate name mismatch | The certificate SANs must cover both Portal and Core FQDNs |
 | Core cannot reach a private Route or gateway | Add the exact private CIDR to `core.networkPolicy.extraEgress` |

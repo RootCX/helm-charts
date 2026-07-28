@@ -5,13 +5,15 @@ global:
     # OpenShift Local exposes this applications domain. Prefixes must be unique
     # in the cluster because Route hostnames are cluster-wide.
     hosts:
-      portal: rootcx.apps-crc.testing
-      core: rootcx-core.apps-crc.testing
+      portal: portal.rootcx.apps-crc.testing
+      core: api.rootcx.apps-crc.testing
+    # Create this Secret with the mkcert certificate described in README.md.
+    tls:
+      secretName: rootcx-local-tls
 
 core:
-  # Copy openshift-config-managed/default-ingress-cert into this namespace
-  # under this name; see the local HTTPS setup in README.md.
-  trustedCA: rootcx-ingress-ca
+  # This ConfigMap contains mkcert's public rootCA.pem as ca-bundle.crt.
+  trustedCA: rootcx-local-ca
   # CRC resolves *.apps-crc.testing to a private VM address. Portable
   # Kubernetes NetworkPolicies cannot allow an FQDN, so the local profile
   # disables Core egress isolation instead of hardcoding a machine-specific IP.
