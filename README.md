@@ -15,7 +15,7 @@ helm upgrade --install rootcx-core \
 
 RootCX agents can use the OpenAI Chat Completions-compatible endpoint supplied
 by the customer's AI platform. Configure the exact base URL provided by the
-platform team; the chart does not guess a SophIA or Ops4AI hostname:
+platform team; the chart does not guess a gateway hostname:
 
 ```yaml
 ai:
