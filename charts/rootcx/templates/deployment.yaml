@@ -90,9 +90,9 @@ spec:
               value: {{ include "rootcx-portal.portalPublicUrl" . | quote }}
             - name: AUTH_TRUST_HOST
               value: {{ .Values.auth.trustHost | quote }}
-            {{- if .Values.email.enabled }}
             - name: ROOTCX_EMAIL_PROVIDER
-              value: "smtp"
+              value: {{ ternary "smtp" "disabled" .Values.email.enabled | quote }}
+            {{- if .Values.email.enabled }}
             - name: ROOTCX_EMAIL_FROM
               value: {{ .Values.email.from | quote }}
             - name: SMTP_HOST
