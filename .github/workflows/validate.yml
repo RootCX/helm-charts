@@ -44,7 +44,7 @@ jobs:
             --set-string global.rootcx.hosts.core=core.rootcx.invalid \
             --set-string global.rootcx.tls.secretName=rootcx-tls \
             > /tmp/rootcx-managed-openshift.yaml
-          grep -q 'secretName: rootcx-tls' /tmp/rootcx-managed-kubernetes.yaml
+          grep -q 'secretName: "rootcx-tls"' /tmp/rootcx-managed-kubernetes.yaml
           grep -q 'externalCertificate:' /tmp/rootcx-managed-openshift.yaml
           grep -q 'name: "rootcx-tls"' /tmp/rootcx-managed-openshift.yaml
           test "$(grep -c '^kind: RoleBinding$' /tmp/rootcx-managed-openshift.yaml)" -eq 1

@@ -5,10 +5,8 @@ Official Helm charts for deploying RootCX on Kubernetes and OpenShift.
 ## Usage
 
 ```bash
-helm repo add rootcx https://rootcx.github.io/helm-charts
-helm repo update
 helm upgrade --install rootcx-core \
-  rootcx/rootcx-core \
+  oci://ghcr.io/rootcx/charts/rootcx-core \
   --version 0.4.0 \
   --set-string postgresql.auth.password='<password>'
 ```
@@ -35,8 +33,7 @@ uses an RFC1918 or in-cluster address and `networkPolicy.enabled=true`, add only
 the exact egress namespace selector, pod selector, or CIDR supplied by the
 platform team under `networkPolicy.extraEgress`.
 
-The same immutable chart version is also published as
-`oci://ghcr.io/rootcx/charts/rootcx-core`.
+Each immutable chart version is published to GHCR as an OCI artifact.
 
 ## Charts
 
