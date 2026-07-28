@@ -108,8 +108,9 @@ Requirements:
 
 - Kubernetes 1.28+ or OpenShift;
 - Helm 3.14+;
-- two DNS names pointing to the ingress controller or OpenShift router;
-- a certificate covering both names;
+- two DNS names pointing to the ingress controller or OpenShift router, for
+  example `portal.example.com` and `api.example.com`;
+- a trusted certificate covering both names, such as `*.example.com`;
 - a default `ReadWriteOnce` StorageClass when using embedded PostgreSQL.
 
 Start with the example for your platform:
@@ -122,37 +123,41 @@ security configuration.
 
 ### TLS
 
-Use a certificate trusted by every browser and workload:
-
-| Deployment | Certificate |
-| --- | --- |
-| Internet-facing | Publicly trusted CA |
-| Private enterprise | Organization-managed CA |
-| Local development | mkcert |
-
-Standalone self-signed certificates are not recommended in production.
-
-Create the TLS Secret referenced by `global.rootcx.tls.secretName`.
-
-Kubernetes Ingress uses the full certificate chain:
+For Kubernetes Ingress, create the Secret named by
+`global.rootcx.tls.secretName` with the certificate chain and matching private
+key:
 
 ```bash
 kubectl create namespace rootcx
 kubectl create secret tls rootcx-tls --namespace rootcx --cert=fullchain.pem --key=privkey.pem
 ```
 
-OpenShift Route `externalCertificate` expects the serving certificate without
-the CA chain:
+For OpenShift, you can use the router's default wildcard certificate by leaving
+`global.rootcx.tls.secretName` empty, provided it covers both Route hosts and is
+trusted by clients.
+
+To use your own wildcard certificate, first verify that the cluster supports
+externally managed Route certificates:
+
+```bash
+kubectl explain route.spec.tls.externalCertificate
+```
+
+Then create the Secret named by `global.rootcx.tls.secretName`:
 
 ```bash
 kubectl create namespace rootcx
-kubectl create secret tls rootcx-tls --namespace rootcx --cert=certificate.pem --key=privkey.pem
+kubectl create secret tls rootcx-tls --namespace rootcx --cert=server.crt --key=server.key
 ```
 
-On OpenShift, the router's default certificate can be used without a Secret
-when it is trusted and covers both Route hosts.
+The chart gives the OpenShift router read-only access to that Secret. Follow the
+certificate format documented by your cluster's `kubectl explain` output.
 
-For an enterprise CA, also give its public chain to Core:
+Have the platform certificate manager renew the certificate in the same Secret.
+The chart references the Secret; it does not issue or renew certificates.
+
+With a private enterprise CA, browsers and workloads must trust that CA. Give
+its public chain to Core when Core connects to endpoints signed by it:
 
 ```bash
 kubectl create configmap rootcx-enterprise-ca --namespace rootcx --from-file=ca-bundle.crt=enterprise-ca-chain.pem
@@ -162,6 +167,9 @@ kubectl create configmap rootcx-enterprise-ca --namespace rootcx --from-file=ca-
 core:
   trustedCA: rootcx-enterprise-ca
 ```
+
+Leave `core.trustedCA` empty for certificates issued by a CA already trusted by
+the container.
 
 ### Install
 
